@@ -28,76 +28,7 @@ import uuid
 router = APIRouter()
 
 
-@router.delete("/mockups/{mockup_id}")
-async def delete_mockup(
-    mockup_id: str,
-    current_user: User = Depends(get_current_user),
-    db = Depends(get_db)
-):
-    """Delete a mockup"""
-    mockup = await db.mockup.find_unique(
-        where={"id": mockup_id}
-    )
-    
-    if not mockup or mockup.user_id != current_user.id:
-        raise NotFoundError("Mockup not found")
-    
-    await db.mockup.delete(where={"id": mockup_id})
-    
-    return {"message": "Mockup deleted successfully"}
-
-
-@router.get("/mockups/stats", response_model=MockupStats)
-async def get_mockup_stats(
-    current_user: User = Depends(get_current_user),
-    db = Depends(get_db)
-):
-    """Get user's mockup statistics"""
-    total_mockups = await db.mockup.count(
-        where={"user_id": current_user.id}
-    )
-    
-    completed_mockups = await db.mockup.count(
-        where={
-            "user_id": current_user.id,
-            "status": MockupStatus.COMPLETED
-        }
-    )
-    
-    failed_mockups = await db.mockup.count(
-        where={
-            "user_id": current_user.id,
-            "status": MockupStatus.FAILED
-        }
-    )
-    
-    processing_mockups = await db.mockup.count(
-        where={
-            "user_id": current_user.id,
-            "status": MockupStatus.PROCESSING
-        }
-    )
-    
-    # Calculate total processing time
-    completed = await db.mockup.find_many(
-        where={
-            "user_id": current_user.id,
-            "status": MockupStatus.COMPLETED,
-            "processing_time": {"not": None}
-        }
-    )
-    
-    total_processing_time = sum(m.processing_time for m in completed if m.processing_time)
-    average_processing_time = total_processing_time / len(completed) if completed else None
-    
-    return MockupStats(
-        total_mockups=total_mockups,
-        completed_mockups=completed_mockups,
-        failed_mockups=failed_mockups,
-        processing_mockups=processing_mockups,
-        total_processing_time=total_processing_time,
-        average_processing_time=average_processing_time
-    )get("/mockups/techniques", response_model=List[MockupTechniqueInfo])
+@router.get("/mockups/techniques", response_model=List[MockupTechniqueInfo])
 async def get_marking_techniques():
     """Get available marking techniques"""
     techniques = [
@@ -131,7 +62,36 @@ async def get_marking_techniques():
             description="Heat transfer for smooth application",
             premium_only=False
         ),
-        # Add more techniques as needed
+        MockupTechniqueInfo(
+            name="VINILO_TEXTIL",
+            display_name="Vinilo Textil",
+            description="Textile vinyl cutting for clean designs",
+            premium_only=False
+        ),
+        MockupTechniqueInfo(
+            name="DOMING",
+            display_name="Doming",
+            description="3D dome effect for premium look",
+            premium_only=True
+        ),
+        MockupTechniqueInfo(
+            name="TAMPOGRAFIA",
+            display_name="Tampografía",
+            description="Pad printing for irregular surfaces",
+            premium_only=True
+        ),
+        MockupTechniqueInfo(
+            name="SUBLIMACION",
+            display_name="Sublimación",
+            description="Sublimation printing for permanent results",
+            premium_only=False
+        ),
+        MockupTechniqueInfo(
+            name="TERMOGRABADO",
+            display_name="Termograbado",
+            description="Heat embossing for raised effect",
+            premium_only=True
+        ),
     ]
     return techniques
 
@@ -389,4 +349,73 @@ async def regenerate_mockup(
     return MockupResponse.from_orm(updated_mockup)
 
 
-# @router.
+@router.delete("/mockups/{mockup_id}")
+async def delete_mockup(
+    mockup_id: str,
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """Delete a mockup"""
+    mockup = await db.mockup.find_unique(
+        where={"id": mockup_id}
+    )
+    
+    if not mockup or mockup.user_id != current_user.id:
+        raise NotFoundError("Mockup not found")
+    
+    await db.mockup.delete(where={"id": mockup_id})
+    
+    return {"message": "Mockup deleted successfully"}
+
+
+@router.get("/mockups/stats", response_model=MockupStats)
+async def get_mockup_stats(
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """Get user's mockup statistics"""
+    total_mockups = await db.mockup.count(
+        where={"user_id": current_user.id}
+    )
+    
+    completed_mockups = await db.mockup.count(
+        where={
+            "user_id": current_user.id,
+            "status": MockupStatus.COMPLETED
+        }
+    )
+    
+    failed_mockups = await db.mockup.count(
+        where={
+            "user_id": current_user.id,
+            "status": MockupStatus.FAILED
+        }
+    )
+    
+    processing_mockups = await db.mockup.count(
+        where={
+            "user_id": current_user.id,
+            "status": MockupStatus.PROCESSING
+        }
+    )
+    
+    # Calculate total processing time
+    completed = await db.mockup.find_many(
+        where={
+            "user_id": current_user.id,
+            "status": MockupStatus.COMPLETED,
+            "processing_time": {"not": None}
+        }
+    )
+    
+    total_processing_time = sum(m.processing_time for m in completed if m.processing_time)
+    average_processing_time = total_processing_time / len(completed) if completed else None
+    
+    return MockupStats(
+        total_mockups=total_mockups,
+        completed_mockups=completed_mockups,
+        failed_mockups=failed_mockups,
+        processing_mockups=processing_mockups,
+        total_processing_time=total_processing_time,
+        average_processing_time=average_processing_time
+    )
