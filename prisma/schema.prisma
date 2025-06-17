@@ -1,12 +1,12 @@
 generator client {
-  provider                    = "prisma-client-py"
-  enable_experimental_decimal = "true"
-  recursive_type_depth        = "-1"
+  provider = "prisma-client-py"
+  recursive_type_depth = 5
+  enable_experimental_decimal = true
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
