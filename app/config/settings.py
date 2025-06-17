@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import List
+from typing import ClassVar, Dict, Any, List
 import os
 
 
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = Field(env="DATABASE_URL")
+    DIRECT_URL: str = Field(env="DIRECT_URL")
     SUPABASE_URL: str = Field(env="SUPABASE_URL")
     SUPABASE_ANON_KEY: str = Field(env="SUPABASE_ANON_KEY")
     SUPABASE_SERVICE_ROLE_KEY: str = Field(env="SUPABASE_SERVICE_ROLE_KEY")
@@ -50,8 +51,7 @@ class Settings(BaseSettings):
     
     # CORS
     ALLOWED_ORIGINS: List[str] = Field(
-        default=["http://localhost:3000"],
-        env="ALLOWED_ORIGINS"
+        default=["*"],
     )
     
     # Rate Limiting
@@ -61,13 +61,12 @@ class Settings(BaseSettings):
     # File Upload Limits
     MAX_FILE_SIZE: int = Field(default=10485760, env="MAX_FILE_SIZE")  # 10MB
     ALLOWED_IMAGE_EXTENSIONS: List[str] = Field(
-        default=[".jpg", ".jpeg", ".png", ".webp"],
-        env="ALLOWED_IMAGE_EXTENSIONS"
+        default=[".jpg", ".jpeg", ".png", ".webp"]
     )
     
     # Credit System
     FREE_CREDITS_ON_SIGNUP: int = Field(default=3, env="FREE_CREDITS_ON_SIGNUP")
-    CREDIT_PRICES = {
+    CREDIT_PRICES: ClassVar[Dict[int, float]] = {
         10: 9.99,
         20: 18.99,
         50: 44.99,
@@ -75,7 +74,7 @@ class Settings(BaseSettings):
     }
     
     # Subscription Plans
-    SUBSCRIPTION_PLANS = {
+    SUBSCRIPTION_PLANS: ClassVar[Dict[str, Dict[str, Any]]] = {
         "BASIC": {
             "name": "Basic",
             "price": 9.99,
