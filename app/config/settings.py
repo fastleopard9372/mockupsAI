@@ -20,8 +20,6 @@ class Settings(BaseSettings):
     DATABASE_URL: str = Field(env="DATABASE_URL")
     DIRECT_URL: str = Field(env="DIRECT_URL")
     SUPABASE_URL: str = Field(env="SUPABASE_URL")
-    SUPABASE_ANON_KEY: str = Field(env="SUPABASE_ANON_KEY")
-    SUPABASE_SERVICE_ROLE_KEY: str = Field(env="SUPABASE_SERVICE_ROLE_KEY")
     
     # Redis
     REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
