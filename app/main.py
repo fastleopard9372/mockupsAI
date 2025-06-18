@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -17,6 +18,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Starting up AI Mockup Platform backend...")
+    await init_db()
+    logger.info("Database initialized successfully")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down AI Mockup Platform backend...")
+
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
@@ -25,6 +40,33 @@ app = FastAPI(
     openapi_url="/api/v1/openapi.json" if settings.DEBUG else None,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
+    lifespan=lifespan,  # Use lifespan instead of on_event
+    swagger_ui_parameters={
+        "deepLinking": True,
+        "displayRequestDuration": True,
+        "filter": True,
+        "tryItOutEnabled": True,
+        "syntaxHighlight.theme": "monokai",
+    },
+    openapi_tags=[
+        {"name": "Authentication", "description": "Authentication endpoints"},
+        {"name": "Users", "description": "Users endpoints"},
+        {"name": "Mockups", "description": "Mockups endpoints"},
+        {"name": "Products", "description": "Products endpoints"},
+        {"name": "Credits", "description": "Credits endpoints"},
+        {"name": "Subscriptions", "description": "Subscriptions endpoints"},
+        {"name": "Payments", "description": "Payments endpoints with i18n support"},
+        {"name": "Admin", "description": "Admin endpoints"}            
+    ],
+    contact={
+        "name": "API Support",
+        "email": "support@example.com",
+        "url": "https://example.com/support",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
 )
 
 # Middleware
@@ -39,7 +81,7 @@ app.add_middleware(
 if not settings.DEBUG:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["yourdomain.com", "*.yourdomain.com"]
+        allowed_hosts=["*"]
     )
 
 
@@ -71,19 +113,6 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Events
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Starting up AI Mockup Platform backend...")
-    await init_db()
-    logger.info("Database initialized successfully")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Shutting down AI Mockup Platform backend...")
-
-
 # Health check
 @app.get("/health")
 async def health_check():
@@ -108,7 +137,7 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 
 # Root endpoint
 @app.get("/")
-async def root():
+async def root():               
     return {
         "message": "Welcome to AI Mockup Platform API",
         "version": settings.APP_VERSION,

@@ -11,7 +11,7 @@ import os
 
 
 # Test database URL
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "postgresql://test:test@localhost:5432/test_ai_mockup")
+TEST_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://test:test@localhost:5432/test_ai_mockup")
 
 
 @pytest.fixture(scope="session")

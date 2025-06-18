@@ -13,14 +13,17 @@ logger = logging.getLogger(__name__)
 class StorageService:
     """Service for handling file storage with AWS S3"""
     
-    def __init__(self):
-        self.s3_client = boto3.client(
-            's3',
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION
-        )
+    def __init__(self, upload_folder: str = "uploads"):
+        # self.s3_client = boto3.client(
+        #     's3',
+        #     aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        #     aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        #     region_name=settings.AWS_REGION
+        # )
         self.bucket_name = settings.AWS_S3_BUCKET
+        
+        self.upload_folder = upload_folder
+        os.makedirs(self.upload_folder, exist_ok=True)
     
     async def upload_file(
         self,
@@ -34,19 +37,27 @@ class StorageService:
             await file.seek(0)
             
             # Upload file
-            self.s3_client.upload_fileobj(
-                file.file,
-                self.bucket_name,
-                key,
-                ExtraArgs={
-                    'ContentType': content_type or file.content_type or 'application/octet-stream',
-                    'ACL': 'public-read'
-                }
-            )
+            # self.s3_client.upload_fileobj(
+            #     file.file,
+            #     self.bucket_name,
+            #     key,
+            #     ExtraArgs={
+            #         'ContentType': content_type or file.content_type or 'application/octet-stream',
+            #         'ACL': 'public-read'
+            #     }
+            # )
             
-            # Return public URL
-            url = f"https://{self.bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
-            return url
+            # # Return public URL
+            # url = f"https://{self.bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
+            # return url
+            
+            file_location = f"./uploads/{key}"
+            print("file location:",file_location)
+            with open(file_location, "wb") as f:
+                contents = await file.read()
+                f.write(contents)
+            logger.info(f"File saved to {file_location}")
+            return {file_location}
             
         except ClientError as e:
             logger.error(f"Error uploading file to S3: {e}")
@@ -60,16 +71,22 @@ class StorageService:
     ) -> str:
         """Upload bytes data to S3"""
         try:
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=key,
-                Body=data,
-                ContentType=content_type,
-                ACL='public-read'
-            )
+            # self.s3_client.put_object(
+            #     Bucket=self.bucket_name,
+            #     Key=key,
+            #     Body=data,
+            #     ContentType=content_type,
+            #     ACL='public-read'
+            # )
             
-            url = f"https://{self.bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
-            return url
+            # url = f"https://{self.bucket_name}.s3.{settings.AWS_REGION}.amazonaws.com/{key}"
+            # return url
+        
+            file_location = os.path.join(self.upload_folder, key)
+            logger.info(f"Saving file to {file_location}")
+            with open(file_location, "wb") as f:
+                f.write(data)
+            return file_location
             
         except ClientError as e:
             logger.error(f"Error uploading bytes to S3: {e}")

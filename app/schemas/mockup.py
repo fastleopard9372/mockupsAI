@@ -81,7 +81,7 @@ class MockupTechniqueInfo(BaseModel):
     name: str
     display_name: str
     description: str
-    texture_preview_url: Optional[str]
+    texture_preview_url: Optional[str] = None
     premium_only: bool = False
 
 
@@ -92,4 +92,4 @@ class MockupStats(BaseModel):
     failed_mockups: int
     processing_mockups: int
     total_processing_time: int  # in seconds
-    average_processing_time: Optional[float]  # in seconds
+    average_processing_time: Optional[float] = None  # in seconds

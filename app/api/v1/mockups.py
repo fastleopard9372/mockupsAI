@@ -5,6 +5,7 @@ from prisma.enums import MockupStatus, MarkingTechnique
 from app.config.database import get_db
 from app.config.settings import settings
 from app.api.deps import get_current_user
+import logging
 from app.core.exceptions import (
     ValidationError, 
     NotFoundError, 
@@ -109,9 +110,12 @@ async def upload_mockup_images(
     
     storage = StorageService()
     
+    logging.info(f"Uploading images for user {current_user.id}")
     # Generate unique filenames
-    product_filename = f"products/{current_user.id}/{uuid.uuid4()}{product_image.filename}"
-    logo_filename = f"logos/{current_user.id}/{uuid.uuid4()}{logo_image.filename}"
+    # product_filename = f"products/{current_user.id}/{uuid.uuid4()}{product_image.filename}"
+    # logo_filename = f"logos/{current_user.id}/{uuid.uuid4()}{logo_image.filename}"
+    product_filename = f"products/{logo_image.filename}"
+    logo_filename = f"logos/{logo_image.filename}"
     
     try:
         # Upload images to S3

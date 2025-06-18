@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW: int = Field(default=3600, env="RATE_LIMIT_WINDOW")
     
     # File Upload Limits
-    MAX_FILE_SIZE: int = Field(default=10485760, env="MAX_FILE_SIZE")  # 10MB
+    MAX_FILE_SIZE: int = Field(default=10485760, env="MAX_FILE_SIZE")
     ALLOWED_IMAGE_EXTENSIONS: List[str] = Field(
         default=[".jpg", ".jpeg", ".png", ".webp"]
     )
