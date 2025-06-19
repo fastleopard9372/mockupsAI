@@ -4,6 +4,7 @@ from datetime import datetime
 from prisma.models import User
 from app.config.database import get_db
 from app.config.settings import settings
+import logging
 from app.core.auth import (
     verify_password, 
     get_password_hash, 
@@ -39,11 +40,10 @@ async def register(
     db = Depends(get_db)
 ):
     """Register a new user"""
-    # Check if user already exists
     existing_user = await db.user.find_unique(
         where={"email": user_data.email}
     )
-    
+    # Check if user already exists
     if existing_user:
         raise ConflictError("User with this email already exists")
     

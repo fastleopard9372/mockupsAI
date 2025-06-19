@@ -11,6 +11,7 @@ from app.config.database import init_db
 from app.core.exceptions import CustomException
 from app.api.v1 import auth, users, mockups, products, credits, subscriptions, payments, admin
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -25,11 +26,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up AI Mockup Platform backend...")
     await init_db()
     logger.info("Database initialized successfully")
-    
+
     yield
     
     # Shutdown
     logger.info("Shutting down AI Mockup Platform backend...")
+
 
 
 # Create FastAPI app

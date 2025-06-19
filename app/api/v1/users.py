@@ -16,6 +16,9 @@ from app.schemas.credit import CreditBalance
 
 router = APIRouter()
 
+@router.get("/protected")
+async def protected_route(current_user: dict = Depends(get_current_user)):
+    return {"message": "Welcome", "user": current_user}
 
 @router.get("/users/me", response_model=UserProfile)
 async def get_user_profile(
