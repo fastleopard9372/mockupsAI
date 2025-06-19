@@ -57,7 +57,7 @@ class StorageService:
                 contents = await file.read()
                 f.write(contents)
             logger.info(f"File saved to {file_location}")
-            return {file_location}
+            return {f"/uploads/{key}"}
             
         except ClientError as e:
             logger.error(f"Error uploading file to S3: {e}")

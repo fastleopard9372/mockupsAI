@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import time
@@ -10,7 +11,7 @@ from app.config.settings import settings
 from app.config.database import init_db
 from app.core.exceptions import CustomException
 from app.api.v1 import auth, users, mockups, products, credits, subscriptions, payments, admin
-
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -71,6 +72,13 @@ app = FastAPI(
     },
 )
 
+if os.path.exists("uploads"):
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+else:
+    # Create uploads directory if it doesn't exist
+    os.makedirs("uploads", exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+    
 # Middleware
 app.add_middleware(
     CORSMiddleware,
