@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, BackgroundTasks
 from typing import Optional, List
 from prisma.models import User
+from pathlib import Path
+import os
 from prisma.enums import MockupStatus, MarkingTechnique
 from app.config.database import get_db
 from app.config.settings import settings
@@ -105,17 +107,25 @@ async def upload_mockup_images(
 ):
     """Upload product and logo images for mockup generation"""
     # Validate images
+    logging.info(f"Uploading images for user {current_user.id}")
     validate_image(product_image)
     validate_image(logo_image)
     
     storage = StorageService()
     
-    logging.info(f"Uploading images for user {current_user.id}")
     # Generate unique filenames
-    # product_filename = f"products/{current_user.id}/{uuid.uuid4()}{product_image.filename}"
-    # logo_filename = f"logos/{current_user.id}/{uuid.uuid4()}{logo_image.filename}"
-    product_filename = f"products/{logo_image.filename}"
-    logo_filename = f"logos/{logo_image.filename}"
+    #{uuid.uuid4()}
+    product_folder = os.path.dirname(f"products/{current_user.id}")
+    logo_folder = os.path.dirname(f"logos/{current_user.id}")
+    if product_folder:
+        os.makedirs(product_folder, exist_ok=True)
+    if logo_folder:
+        os.makedirs(logo_folder, exist_ok=True)
+    product_filename = f"{product_folder}/{uuid.uuid4()}_{product_image.filename}"
+    logo_filename = f"{logo_folder}/{uuid.uuid4()}_{logo_image.filename}"
+    
+    # product_filename = f"products/{logo_image.filename}"
+    # logo_filename = f"logos/{logo_image.filename}"
     
     try:
         # Upload images to S3
