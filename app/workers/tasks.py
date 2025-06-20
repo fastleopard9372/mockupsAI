@@ -24,128 +24,130 @@ def run_async(coro):
     return loop.run_until_complete(coro)
 
 
-@celery_app.task(bind=True, max_retries=3)
-def generate_mockup_task(self, mockup_id: str):
+# @celery_app.task(bind=True, max_retries=3)
+# def generate_mockup_task(self, mockup_id: str):
+async def  generate_mockup_task(mockup_id: str):
     """Generate mockup using AI service"""
-    async def _generate():
-        db = await get_db()
+    # async def _generate():
+    db = await get_db()
+    logger.info(f"====================Starting mockup generation for ID: {mockup_id}")
+    try:
+        # Get mockup details
+        mockup = await db.mockup.find_unique(where={"id": mockup_id})
+        if not mockup:
+            logger.error(f"Mockup {mockup_id} not found")
+            return
         
-        try:
-            # Get mockup details
-            mockup = await db.mockup.find_unique(where={"id": mockup_id})
-            if not mockup:
-                logger.error(f"Mockup {mockup_id} not found")
-                return
-            
-            # Update status to processing
-            await db.mockup.update(
-                where={"id": mockup_id},
-                data={"status": MockupStatus.PROCESSING}
-            )
-            
-            # Update task progress
-            if current_task:
-                current_task.update_state(
-                    state='PROGRESS',
-                    meta={'current': 25, 'total': 100, 'status': 'Processing images...'}
-                )
-            
-            start_time = datetime.utcnow()
-            
-            # Initialize AI service if needed
-            if not ai_service.pipeline:
-                await ai_service.initialize_models()
-            
-            if current_task:
-                current_task.update_state(
-                    state='PROGRESS',
-                    meta={'current': 50, 'total': 100, 'status': 'Generating mockup...'}
-                )
-            
-            # Generate mockup
-            result_url = await ai_service.generate_mockup(
-                product_image_url=mockup.product_image_url,
-                logo_image_url=mockup.logo_image_url,
-                marking_zone=(
-                    mockup.marking_zone_x,
-                    mockup.marking_zone_y,
-                    mockup.marking_zone_w,
-                    mockup.marking_zone_h
-                ),
-                technique=mockup.marking_technique.value,
-                logo_scale=mockup.logo_scale,
-                logo_rotation=mockup.logo_rotation,
-                logo_color=mockup.logo_color,
-                use_ai=True
-            )
-            
-            if current_task:
-                current_task.update_state(
-                    state='PROGRESS',
-                    meta={'current': 90, 'total': 100, 'status': 'Finalizing...'}
-                )
-            
-            # Calculate processing time
-            end_time = datetime.utcnow()
-            processing_time = int((end_time - start_time).total_seconds())
-            
-            # Update mockup with result
-            await db.mockup.update(
-                where={"id": mockup_id},
-                data={
-                    "status": MockupStatus.COMPLETED,
-                    "result_image_url": result_url,
-                    "processing_time": processing_time,
-                    "error_message": None
-                }
-            )
-            
-            # Send notification email
-            user = await db.user.find_unique(where={"id": mockup.user_id})
-            if user and user.email:
-                send_email_task.delay(
-                    "mockup_completed",
-                    user.email,
-                    {
-                        "user_name": user.first_name or "User",
-                        "mockup_name": mockup.name or "Your mockup",
-                        "mockup_id": mockup_id
-                    }
-                )
-            
-            logger.info(f"Mockup {mockup_id} generated successfully in {processing_time}s")
-            
-        except Exception as e:
-            logger.error(f"Error generating mockup {mockup_id}: {e}")
-            
-            # Update mockup with error
-            await db.mockup.update(
-                where={"id": mockup_id},
-                data={
-                    "status": MockupStatus.FAILED,
-                    "error_message": str(e)
-                }
-            )
-            
-            # Refund credit if generation failed
-            if mockup.credit_id:
-                credit = await db.credit.find_unique(where={"id": mockup.credit_id})
-                if credit and credit.used > 0:
-                    await db.credit.update(
-                        where={"id": credit.id},
-                        data={"used": credit.used - 1}
-                    )
-            
-            # Retry task if not at max retries
-            if self.request.retries < self.max_retries:
-                raise self.retry(countdown=60, exc=e)
-            
-            raise e
+        # Update status to processing
+        await db.mockup.update(
+            where={"id": mockup_id},
+            data={"status": MockupStatus.PROCESSING}
+        )
         
-        finally:
-            await db.disconnect()
+        # Update task progress
+        if current_task:
+            current_task.update_state(
+                state='PROGRESS',
+                meta={'current': 25, 'total': 100, 'status': 'Processing images...'}
+            )
+        
+        start_time = datetime.utcnow()
+        
+        # Initialize AI service if needed
+        if not ai_service.pipeline:
+            await ai_service.initialize_models()
+        
+        # if current_task:
+        #     current_task.update_state(
+        #         state='PROGRESS',
+        #         meta={'current': 50, 'total': 100, 'status': 'Generating mockup...'}
+        #     )
+        
+        # Generate mockup
+        result_url = await ai_service.generate_mockup(
+            product_image_url=mockup.product_image_url,
+            logo_image_url=mockup.logo_image_url,
+            marking_zone=(
+                mockup.marking_zone_x,
+                mockup.marking_zone_y,
+                mockup.marking_zone_w,
+                mockup.marking_zone_h
+            ),
+            technique=mockup.marking_technique.value,
+            logo_scale=mockup.logo_scale,
+            logo_rotation=mockup.logo_rotation,
+            logo_color=mockup.logo_color,
+            use_ai=True
+        )
+        
+        # if current_task:
+        #     current_task.update_state(
+        #         state='PROGRESS',
+        #         meta={'current': 90, 'total': 100, 'status': 'Finalizing...'}
+        #     )
+        
+        # Calculate processing time
+        end_time = datetime.utcnow()
+        processing_time = int((end_time - start_time).total_seconds())
+        
+        # Update mockup with result
+        await db.mockup.update(
+            where={"id": mockup_id},
+            data={
+                "status": MockupStatus.COMPLETED,
+                "result_image_url": result_url,
+                "processing_time": processing_time,
+                "error_message": None
+            }
+        )
+        
+        # Send notification email
+        user = await db.user.find_unique(where={"id": mockup.user_id})
+        # if user and user.email:
+        #     send_email_task.delay(
+        #         "mockup_completed",
+        #         user.email,
+        #         {
+        #             "user_name": user.first_name or "User",
+        #             "mockup_name": mockup.name or "Your mockup",
+        #             "mockup_id": mockup_id
+        #         }
+        #     )
+        
+        logger.info(f"Mockup {mockup_id} generated successfully in {processing_time}s")
+        
+    except Exception as e:
+        logger.error(f"Error generating mockup {mockup_id}: {e}")
+        
+        # Update mockup with error
+        await db.mockup.update(
+            where={"id": mockup_id},
+            data={
+                "status": MockupStatus.FAILED,
+                "error_message": str(e)
+            }
+        )
+        
+        # Refund credit if generation failed
+        if mockup.credit_id:
+            credit = await db.credit.find_unique(where={"id": mockup.credit_id})
+            if credit and credit.used > 0:
+                await db.credit.update(
+                    where={"id": credit.id},
+                    data={"used": credit.used - 1}
+                )
+        
+        # Retry task if not at max retries
+        # if self.request.retries < self.max_retries:
+        #     raise self.retry(countdown=60, exc=e)
+        
+        raise e
     
-    return run_async(_generate())
+    finally:
+        await db.disconnect()
+    
+    # return run_async(_generate())
+    # return _generate()
 
 
 @celery_app.task

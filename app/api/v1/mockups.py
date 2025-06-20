@@ -8,6 +8,9 @@ from app.config.database import get_db
 from app.config.settings import settings
 from app.api.deps import get_current_user
 import logging
+
+from app.workers.tasks import generate_mockup_task
+
 from app.core.exceptions import (
     ValidationError, 
     NotFoundError, 
@@ -15,13 +18,13 @@ from app.core.exceptions import (
     FileUploadError
 )
 from app.schemas.mockup import (
-    MockupCreate,
     MockupUpdate, 
     MockupResponse,
     MockupListResponse,
     MockupGenerationStatus,
     MockupTechniqueInfo,
-    MockupStats
+    MockupStats,
+    MockupCreateRequest
 )
 from app.services.image_service import validate_image, upload_image
 from app.services.storage_service import StorageService
@@ -101,61 +104,55 @@ async def get_marking_techniques():
 
 @router.post("/mockups/upload", response_model=dict)
 async def upload_mockup_images(
-    product_image: UploadFile = File(...),
-    logo_image: UploadFile = File(...),
+    image: UploadFile = File(...),
+    type: str = Form(..., regex="^(products|logos)$"),
     current_user: User = Depends(get_current_user)
 ):
     """Upload product and logo images for mockup generation"""
     # Validate images
     logging.info(f"Uploading images for user {current_user.id}")
-    validate_image(product_image)
-    validate_image(logo_image)
+    validate_image(image)
     
     storage = StorageService()
     
     # Generate unique filenames
     #{uuid.uuid4()}
-    product_folder = os.path.dirname(f"products/{current_user.id}")
-    logo_folder = os.path.dirname(f"logos/{current_user.id}")
-    if product_folder:
-        os.makedirs(product_folder, exist_ok=True)
-    if logo_folder:
-        os.makedirs(logo_folder, exist_ok=True)
-    product_filename = f"{product_folder}/{uuid.uuid4()}_{product_image.filename}"
-    logo_filename = f"{logo_folder}/{uuid.uuid4()}_{logo_image.filename}"
+    folder = os.path.dirname(f"{type}/{current_user.id}")
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    
+    filename = f"{folder}/{uuid.uuid4()}_{image.filename}"
     
     # product_filename = f"products/{logo_image.filename}"
     # logo_filename = f"logos/{logo_image.filename}"
     
     try:
         # Upload images to S3
-        product_url = await storage.upload_file(product_image, product_filename)
-        logo_url = await storage.upload_file(logo_image, logo_filename)
-        
+        url = await storage.upload_file(image, filename)
         return {
-            "product_image_url": product_url,
-            "logo_image_url": logo_url
+            "image_url": url,
+            "type": type
         }
     except Exception as e:
         raise FileUploadError(f"Failed to upload images: {str(e)}")
 
-
 @router.post("/mockups", response_model=MockupResponse)
 async def create_mockup(
-    mockup_data: MockupCreate,
-    product_image_url: str = Form(...),
-    logo_image_url: str = Form(...),
+    request: MockupCreateRequest,
     background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
 ):
     """Create a new mockup generation request"""
+    name = request.name
+    technique = request.technique
     # Check if user has available credits
     available_credits = await db.credit.find_many(
         where={"user_id": current_user.id}
     )
     
     total_available = sum(c.amount - c.used for c in available_credits)
+    logging.info(f"total_available:{total_available}")
     if total_available < 1:
         raise InsufficientCreditsError("Insufficient credits to generate mockup")
     
@@ -163,18 +160,18 @@ async def create_mockup(
     mockup = await db.mockup.create(
         data={
             "user_id": current_user.id,
-            "product_id": mockup_data.product_id,
-            "name": mockup_data.name,
-            "marking_technique": mockup_data.marking_technique,
-            "product_image_url": product_image_url,
-            "logo_image_url": logo_image_url,
-            "marking_zone_x": mockup_data.marking_zone_x,
-            "marking_zone_y": mockup_data.marking_zone_y,
-            "marking_zone_w": mockup_data.marking_zone_w,
-            "marking_zone_h": mockup_data.marking_zone_h,
-            "logo_scale": mockup_data.logo_scale,
-            "logo_rotation": mockup_data.logo_rotation,
-            "logo_color": mockup_data.logo_color,
+            "product_id": None,
+            "name": name,
+            "marking_technique": technique,
+            "product_image_url":'/uploads/products/test.png',
+            "logo_image_url": '/uploads/logos/test.png',
+            "marking_zone_x": 0,
+            "marking_zone_y": 0,
+            "marking_zone_w": 1,
+            "marking_zone_h": 1,
+            "logo_scale": 0,
+            "logo_rotation": 0,
+            "logo_color": 'transparent',
             "status": MockupStatus.PENDING
         }
     )
@@ -194,6 +191,8 @@ async def create_mockup(
     
     # Queue background task for AI generation
     background_tasks.add_task(generate_mockup_task.delay, mockup.id)
+    
+    generate_mockup_task(mockup.id)
     
     return MockupResponse.from_orm(mockup)
 
@@ -319,7 +318,7 @@ async def update_mockup(
 @router.post("/mockups/{mockup_id}/regenerate", response_model=MockupResponse)
 async def regenerate_mockup(
     mockup_id: str,
-    background_tasks: BackgroundTasks,
+    # background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
 ):
@@ -358,7 +357,9 @@ async def regenerate_mockup(
     )
     
     # Queue background task
-    background_tasks.add_task(generate_mockup_task.delay, mockup_id)
+    logging.info(f"=================Regenerating mockup {mockup_id} for user {current_user.id}")
+    # background_tasks.add_task(generate_mockup_task.delay, mockup_id)
+    await generate_mockup_task(mockup_id=mockup_id)
     
     return MockupResponse.from_orm(updated_mockup)
 

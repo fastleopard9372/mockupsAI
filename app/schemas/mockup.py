@@ -3,19 +3,9 @@ from typing import Optional
 from datetime import datetime
 from prisma.enums import MockupStatus, MarkingTechnique
 
-
-class MockupCreate(BaseModel):
-    name: Optional[str] = None
-    product_id: Optional[str] = None
-    marking_technique: MarkingTechnique
-    marking_zone_x: float = Field(..., ge=0, le=1, description="X coordinate as percentage")
-    marking_zone_y: float = Field(..., ge=0, le=1, description="Y coordinate as percentage") 
-    marking_zone_w: float = Field(..., ge=0, le=1, description="Width as percentage")
-    marking_zone_h: float = Field(..., ge=0, le=1, description="Height as percentage")
-    logo_scale: float = Field(default=1.0, ge=0.1, le=3.0)
-    logo_rotation: float = Field(default=0.0, ge=-360, le=360)
-    logo_color: Optional[str] = None
-
+class MockupCreateRequest(BaseModel):
+    name: str
+    technique: str
 
 class MockupUpdate(BaseModel):
     name: Optional[str] = None
