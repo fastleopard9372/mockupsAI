@@ -73,7 +73,7 @@ async def  generate_mockup_task(mockup_id: str):
                 mockup.marking_zone_w,
                 mockup.marking_zone_h
             ),
-            technique=mockup.marking_technique.value,
+            technique='SERIGRAFIA', #mockup.marking_technique.value,
             logo_scale=mockup.logo_scale,
             logo_rotation=mockup.logo_rotation,
             logo_color=mockup.logo_color,

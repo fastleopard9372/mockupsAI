@@ -52,12 +52,14 @@ class StorageService:
             # return url
             
             file_location = f"./uploads/{key}"
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(file_location), exist_ok=True)
             print("file location:",file_location)
             with open(file_location, "wb") as f:
                 contents = await file.read()
                 f.write(contents)
             logger.info(f"File saved to {file_location}")
-            return {f"/uploads/{key}"}
+            return f"/uploads/{key}"
             
         except ClientError as e:
             logger.error(f"Error uploading file to S3: {e}")
@@ -83,10 +85,13 @@ class StorageService:
             # return url
         
             file_location = os.path.join(self.upload_folder, key)
+            # Ensure directory exists
+            logger.info(f"uploading.............")
+            os.makedirs(os.path.dirname(file_location), exist_ok=True)
             logger.info(f"Saving file to {file_location}")
             with open(file_location, "wb") as f:
                 f.write(data)
-            return file_location
+            return f"/uploads/{key}"
             
         except ClientError as e:
             logger.error(f"Error uploading bytes to S3: {e}")

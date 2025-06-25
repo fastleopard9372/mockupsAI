@@ -6,6 +6,7 @@ import numpy as np
 import requests
 from typing import Optional, Tuple
 import io
+import os
 import logging
 from app.config.settings import settings
 from app.services.image_service import apply_logo_to_product, image_to_bytes
@@ -56,9 +57,17 @@ class AIService:
     async def download_image(self, url: str) -> Image.Image:
         """Download image from URL"""
         try:
-            response = requests.get(url, timeout=30)
-            response.raise_for_status()
-            return Image.open(io.BytesIO(response.content)).convert('RGB')
+            # Handle relative URLs by converting to absolute URLs
+            if url.startswith('/'):
+                # For relative URLs, we need to construct the full URL
+                # Assuming the images are served from the same domain
+                base_url = "http://localhost:5371"  # Default for development
+                # url = f"{base_url}{url}"
+            
+            # response = requests.get(url, timeout=30)
+            # response.raise_for_status()
+            path = "./"+url
+            return Image.open(path).convert('RGB')
         except Exception as e:
             logger.error(f"Failed to download image from {url}: {e}")
             raise
@@ -142,7 +151,7 @@ class AIService:
             
             # Upload result to storage
             result_bytes = image_to_bytes(result_image, 'PNG')
-            
+            logging.info(f"=============")
             # Generate unique filename
             import uuid
             result_filename = f"mockups/{uuid.uuid4()}.png"

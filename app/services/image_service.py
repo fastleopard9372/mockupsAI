@@ -243,8 +243,11 @@ def apply_logo_to_product(
         # Calculate absolute position and size
         x = int(position[0] * product_width)
         y = int(position[1] * product_height)
-        zone_width = int(position[2] * product_width)
-        zone_height = int(position[3] * product_height)
+        zone_width = int(0.5* product_width)
+        zone_height = int(0.5 * product_height)
+        logger.info(F"{x} {y} {zone_width}  {zone_height}")
+        # zone_width = int(position[2] * product_width)
+        # zone_height = int(position[3] * product_height)
         
         # Resize logo to fit zone
         logo_copy = logo_image.copy()
@@ -260,18 +263,28 @@ def apply_logo_to_product(
             logo_copy = logo_copy.rotate(rotation, expand=True)
         
         # Apply color overlay if specified
-        if color_overlay:
-            # Convert hex color to RGB
-            if color_overlay.startswith('#'):
-                color_overlay = color_overlay[1:]
-            rgb_color = tuple(int(color_overlay[i:i+2], 16) for i in (0, 2, 4))
-            
-            # Apply color tint
-            if logo_copy.mode != 'RGBA':
-                logo_copy = logo_copy.convert('RGBA')
-            
-            colored_logo = Image.new('RGBA', logo_copy.size, rgb_color + (128,))
-            logo_copy = Image.alpha_composite(logo_copy, colored_logo)
+        if color_overlay and color_overlay.lower() != 'transparent':
+            try:
+                # Convert hex color to RGB
+                if color_overlay.startswith('#'):
+                    color_overlay = color_overlay[1:]
+                
+                # Validate hex color length
+                if len(color_overlay) != 6:
+                    logger.warning(f"Invalid color format: {color_overlay}")
+                    rgb_color = (0, 0, 0)  # Default to black
+                else:
+                    rgb_color = tuple(int(color_overlay[i:i+2], 16) for i in (0, 2, 4))
+                
+                # Apply color tint
+                if logo_copy.mode != 'RGBA':
+                    logo_copy = logo_copy.convert('RGBA')
+                
+                colored_logo = Image.new('RGBA', logo_copy.size, rgb_color + (128,))
+                logo_copy = Image.alpha_composite(logo_copy, colored_logo)
+            except ValueError as e:
+                logger.warning(f"Error parsing color {color_overlay}: {e}") 
+                # Skip color overlay on error
         
         # Apply texture effect
         logo_copy = create_texture_overlay(logo_copy, texture_type)

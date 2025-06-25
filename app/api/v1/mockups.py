@@ -106,35 +106,60 @@ async def get_marking_techniques():
 async def upload_mockup_images(
     image: UploadFile = File(...),
     type: str = Form(..., regex="^(products|logos)$"),
-    current_user: User = Depends(get_current_user)
+    mockup_id: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db)
 ):
     """Upload product and logo images for mockup generation"""
     # Validate images
-    logging.info(f"Uploading images for user {current_user.id}")
+    logging.info(f"Uploading {type} image for user {current_user.id}")
     validate_image(image)
     
     storage = StorageService()
     
     # Generate unique filenames
-    #{uuid.uuid4()}
-    folder = os.path.dirname(f"{type}/{current_user.id}")
-    if folder:
-        os.makedirs(folder, exist_ok=True)
+    folder = f"{type}/{current_user.id}"
+    os.makedirs(folder, exist_ok=True)
     
     filename = f"{folder}/{uuid.uuid4()}_{image.filename}"
     
-    # product_filename = f"products/{logo_image.filename}"
-    # logo_filename = f"logos/{logo_image.filename}"
-    
     try:
-        # Upload images to S3
+        # Upload image to S3
         url = await storage.upload_file(image, filename)
+        
+        # If mockup_id is provided, update the existing mockup
+        if mockup_id:
+            mockup = await db.mockup.find_unique(
+                where={"id": mockup_id}
+            )
+            
+            if not mockup:
+                raise NotFoundError("Mockup not found")
+            
+            if mockup.user_id != current_user.id:
+                raise NotFoundError("Mockup not found")
+            
+            # Update mockup with new image URL
+            update_data = {}
+            if type == "products":
+                update_data["product_image_url"] = F'/uploads/{filename}'
+            elif type == "logos":
+                update_data["logo_image_url"] = F'/uploads/{filename}'
+            
+            if update_data:
+                await db.mockup.update(
+                    where={"id": mockup_id},
+                    data=update_data
+                )
+                logging.info(f"Updated mockup {mockup_id} with {type} image: {filename}")
+        
         return {
             "image_url": url,
-            "type": type
+            "type": type,
+            "mockup_id": mockup_id
         }
     except Exception as e:
-        raise FileUploadError(f"Failed to upload images: {str(e)}")
+        raise FileUploadError(f"Failed to upload image: {str(e)}")
 
 @router.post("/mockups", response_model=MockupResponse)
 async def create_mockup(
