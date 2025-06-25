@@ -187,7 +187,9 @@ class AIService:
             control_image = self.prepare_control_image(base_mockup)
             
             # Create technique-specific prompt with fitting emphasis
-            technique_prompt = self.get_technique_prompt(technique)
+            
+            # technique_prompt = self.get_technique_prompt(technique)
+            technique_prompt = self.get_technique_prompt("SERIGRAFIA")
             
             # Enhanced prompt focusing on perfect logo fitting and integration
             prompt = f"photorealistic product mockup with logo perfectly fitted and conforming to surface geometry, {technique_prompt}, logo seamlessly integrated following product contours and curves, precise logo alignment to marking area, logo wraps naturally around product shape, perfect perspective matching, realistic surface mapping, logo adapts to material texture and lighting, professional commercial photography, studio lighting, no logo distortion, exact fit to background surface topology, logo follows natural product lines and edges"
@@ -213,10 +215,10 @@ class AIService:
                     prompt=prompt,
                     image=control_image_resized,
                     negative_prompt=negative_prompt,
-                    num_inference_steps=30,  # More steps for better quality and fitting
-                    guidance_scale=9.0,  # Higher guidance for better prompt adherence
-                    controlnet_conditioning_scale=1.4,  # Higher to better preserve structure and positioning
-                    generator=torch.Generator(device=self.device).manual_seed(42)
+                    num_inference_steps=20,  # More steps for better quality and fitting
+                    guidance_scale=5.0,  # Higher guidance for better prompt adherence
+                    controlnet_conditioning_scale=1,  # Higher to better preserve structure and positioning
+                    generator=torch.Generator(device=self.device).manual_seed(30)
                 ).images[0]
             
             # Resize back to original size if needed
