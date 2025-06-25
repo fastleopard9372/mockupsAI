@@ -188,7 +188,7 @@ def detect_marking_zones(image_path: str) -> list:
 def create_texture_overlay(
     base_image: Image.Image,
     texture_type: str,
-    opacity: float = 0.3
+    opacity: float = 0.8  # Increased opacity for more vivid logos
 ) -> Image.Image:
     """Create texture overlay for different marking techniques"""
     try:
@@ -258,6 +258,10 @@ def apply_logo_to_product(
             new_size = (int(logo_copy.width * scale), int(logo_copy.height * scale))
             logo_copy = logo_copy.resize(new_size, Image.Resampling.LANCZOS)
         
+        # Enhance logo vividness
+        # Increase brightness and contrast to make logo more prominent
+        logo_copy = enhance_image(logo_copy, brightness=1.2, contrast=1.3, sharpness=1.2)
+        
         # Apply rotation
         if rotation != 0.0:
             logo_copy = logo_copy.rotate(rotation, expand=True)
@@ -276,12 +280,31 @@ def apply_logo_to_product(
                 else:
                     rgb_color = tuple(int(color_overlay[i:i+2], 16) for i in (0, 2, 4))
                 
-                # Apply color tint
+                # Apply color tint with higher opacity for vividness
                 if logo_copy.mode != 'RGBA':
                     logo_copy = logo_copy.convert('RGBA')
                 
-                colored_logo = Image.new('RGBA', logo_copy.size, rgb_color + (128,))
-                logo_copy = Image.alpha_composite(logo_copy, colored_logo)
+                # Create color overlay with higher opacity (200 instead of 128)
+                colored_logo = Image.new('RGBA', logo_copy.size, rgb_color + (200,))
+                
+                # Use multiply blend mode for more vivid colors
+                logo_data = logo_copy.getdata()
+                color_data = colored_logo.getdata()
+                new_data = []
+                
+                for i in range(len(logo_data)):
+                    r1, g1, b1, a1 = logo_data[i]
+                    r2, g2, b2, a2 = color_data[i]
+                    
+                    # Multiply blend mode for vivid colors
+                    r = int((r1 * r2) / 255)
+                    g = int((g1 * g2) / 255)
+                    b = int((b1 * b2) / 255)
+                    a = max(a1, a2)
+                    
+                    new_data.append((r, g, b, a))
+                
+                logo_copy.putdata(new_data)
             except ValueError as e:
                 logger.warning(f"Error parsing color {color_overlay}: {e}") 
                 # Skip color overlay on error

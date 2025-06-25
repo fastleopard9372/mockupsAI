@@ -115,7 +115,8 @@ async def get_database_info():
 async def seed_database():
     """Seed database with initial data"""
     try:
-        db = await get_db()
+        # Connect to database
+        await db.connect()
         
         # Check if we need to seed
         product_count = await db.product.count()
@@ -165,6 +166,8 @@ async def seed_database():
     except Exception as e:
         logger.error(f"Error seeding database: {e}")
         raise
+    finally:
+        await db.disconnect()
 
 
 async def cleanup_database():

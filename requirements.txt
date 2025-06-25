@@ -21,7 +21,7 @@ redis==5.0.1
 torch==2.1.1
 torchvision==0.16.1
 diffusers==0.33.1
-transformers==4.36.0
+transformers>=4.40.0
 accelerate==0.25.0
 controlnet-aux==0.0.6
 
