@@ -9,11 +9,11 @@ class MockupCreateRequest(BaseModel):
 
 class MockupUpdate(BaseModel):
     name: Optional[str] = None
-    marking_zone_x: Optional[float] = Field(None, ge=0, le=1)
-    marking_zone_y: Optional[float] = Field(None, ge=0, le=1)
-    marking_zone_w: Optional[float] = Field(None, ge=0, le=1)
-    marking_zone_h: Optional[float] = Field(None, ge=0, le=1)
-    logo_scale: Optional[float] = Field(None, ge=0.1, le=3.0)
+    marking_zone_x: Optional[float] = Field(None)
+    marking_zone_y: Optional[float] = Field(None)
+    marking_zone_w: Optional[float] = Field(None)
+    marking_zone_h: Optional[float] = Field(None)
+    logo_scale: Optional[float] = Field(None)
     logo_rotation: Optional[float] = Field(None, ge=-360, le=360)
     logo_color: Optional[str] = None
 

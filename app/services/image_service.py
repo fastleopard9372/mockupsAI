@@ -239,19 +239,20 @@ def apply_logo_to_product(
     """Apply logo to product image with specified parameters"""
     try:
         product_width, product_height = product_image.size
+        logo_width, logo_height = logo_image.size
         
         # Calculate absolute position and size
         x = int(position[0] * product_width)
         y = int(position[1] * product_height)
-        zone_width = int(0.5* product_width)
-        zone_height = int(0.5 * product_height)
+        # zone_width = int(0.5* product_width)
+        # zone_height = int(0.5 * product_height)
         logger.info(F"{x} {y} {zone_width}  {zone_height}")
         # zone_width = int(position[2] * product_width)
         # zone_height = int(position[3] * product_height)
         
         # Resize logo to fit zone
         logo_copy = logo_image.copy()
-        logo_copy.thumbnail((zone_width, zone_height), Image.Resampling.LANCZOS)
+        logo_copy.thumbnail((logo_width, logo_height), Image.Resampling.LANCZOS)
         
         # Apply scale
         if scale != 1.0:
@@ -260,7 +261,7 @@ def apply_logo_to_product(
         
         # Enhance logo vividness
         # Increase brightness and contrast to make logo more prominent
-        logo_copy = enhance_image(logo_copy, brightness=1.2, contrast=1.3, sharpness=1.2)
+        # logo_copy = enhance_image(logo_copy, brightness=1.2, contrast=1.3, sharpness=1.2)
         
         # Apply rotation
         if rotation != 0.0:
