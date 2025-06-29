@@ -81,109 +81,6 @@ def enhance_image(image: Image.Image, brightness: float = 1.0, contrast: float =
     return image
 
 
-def remove_background(image_path: str) -> Optional[Image.Image]:
-    """Remove background from image (basic implementation)"""
-    try:
-        # Load image
-        image = cv2.imread(image_path)
-        if image is None:
-            return None
-        
-        # Convert to RGB
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
-        # Create mask using GrabCut algorithm
-        mask = np.zeros(image_rgb.shape[:2], np.uint8)
-        
-        # Define rectangle around the object (rough estimation)
-        height, width = image_rgb.shape[:2]
-        rect = (int(width*0.1), int(height*0.1), int(width*0.8), int(height*0.8))
-        
-        # Initialize background and foreground models
-        bgd_model = np.zeros((1, 65), np.float64)
-        fgd_model = np.zeros((1, 65), np.float64)
-        
-        # Apply GrabCut
-        cv2.grabCut(image_rgb, mask, rect, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_RECT)
-        
-        # Create final mask
-        mask2 = np.where((mask == 2) | (mask == 0), 0, 1).astype('uint8')
-        
-        # Apply mask to image
-        result = image_rgb * mask2[:, :, np.newaxis]
-        
-        # Convert back to PIL Image with transparency
-        result_image = Image.fromarray(result)
-        result_image = result_image.convert("RGBA")
-        
-        # Make background transparent
-        data = result_image.getdata()
-        new_data = []
-        for item in data:
-            # Change all black (or nearly black) pixels to transparent
-            if item[0] < 10 and item[1] < 10 and item[2] < 10:
-                new_data.append((255, 255, 255, 0))  # Transparent
-            else:
-                new_data.append(item)
-        
-        result_image.putdata(new_data)
-        return result_image
-        
-    except Exception as e:
-        logger.error(f"Error removing background: {e}")
-        return None
-
-
-def detect_marking_zones(image_path: str) -> list:
-    """Automatically detect potential marking zones on products"""
-    try:
-        # Load image
-        image = cv2.imread(image_path)
-        if image is None:
-            return []
-        
-        # Convert to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # Apply Gaussian blur
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        
-        # Edge detection
-        edges = cv2.Canny(blurred, 50, 150)
-        
-        # Find contours
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Filter and analyze contours for potential marking zones
-        zones = []
-        height, width = image.shape[:2]
-        
-        for contour in contours:
-            # Calculate contour area
-            area = cv2.contourArea(contour)
-            
-            # Filter by area (should be reasonable size for marking)
-            if area > (width * height * 0.01) and area < (width * height * 0.5):
-                # Get bounding rectangle
-                x, y, w, h = cv2.boundingRect(contour)
-                
-                # Convert to relative coordinates
-                zones.append({
-                    'x': x / width,
-                    'y': y / height,
-                    'width': w / width,
-                    'height': h / height,
-                    'confidence': min(1.0, area / (width * height * 0.1))
-                })
-        
-        # Sort by confidence and return top 3
-        zones.sort(key=lambda z: z['confidence'], reverse=True)
-        return zones[:3]
-        
-    except Exception as e:
-        logger.error(f"Error detecting marking zones: {e}")
-        return []
-
 
 def create_texture_overlay(
     base_image: Image.Image,
@@ -244,15 +141,20 @@ def apply_logo_to_product(
         # Calculate absolute position and size
         x = int(position[0] * product_width)
         y = int(position[1] * product_height)
-        # zone_width = int(0.5* product_width)
-        # zone_height = int(0.5 * product_height)
-        logger.info(F"{x} {y} {zone_width}  {zone_height}")
-        # zone_width = int(position[2] * product_width)
-        # zone_height = int(position[3] * product_height)
+        
+        # Use position array if it contains width/height, otherwise use default
+        if len(position) >= 4:
+            zone_width = int(position[2] * product_width)
+            zone_height = int(position[3] * product_height)
+        else:
+            zone_width = int(0.5 * product_width)
+            zone_height = int(0.5 * product_height)
+            
+        logger.info(f"{x} {y} {zone_width} {zone_height}")
         
         # Resize logo to fit zone
         logo_copy = logo_image.copy()
-        logo_copy.thumbnail((logo_width, logo_height), Image.Resampling.LANCZOS)
+        logo_copy.thumbnail((zone_width, zone_height), Image.Resampling.LANCZOS)
         
         # Apply scale
         if scale != 1.0:

@@ -13,6 +13,7 @@ class MockupUpdate(BaseModel):
     marking_zone_y: Optional[float] = Field(None)
     marking_zone_w: Optional[float] = Field(None)
     marking_zone_h: Optional[float] = Field(None)
+    marking_technique: Optional[MarkingTechnique] = Field(None)
     logo_scale: Optional[float] = Field(None)
     logo_rotation: Optional[float] = Field(None, ge=-360, le=360)
     logo_color: Optional[str] = None
@@ -25,8 +26,8 @@ class MockupResponse(BaseModel):
     name: Optional[str]
     status: MockupStatus
     marking_technique: MarkingTechnique
-    product_image_url: str
-    logo_image_url: str
+    product_image_url: Optional[str] = Field(None)
+    logo_image_url: Optional[str] = Field(None)
     result_image_url: Optional[str]
     marking_zone_x: float
     marking_zone_y: float

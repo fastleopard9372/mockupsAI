@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import ClassVar, Dict, Any, List
+from typing import ClassVar, Dict, Any, List, Optional
 import os
 
 
@@ -22,14 +22,14 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = Field(env="SUPABASE_URL")
     SUPABASE_ANON_KEY: str = Field(env="SUPABASE_ANON_KEY")
     
-    # Redis
-    REDIS_URL: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
+    # Redis (optional)
+    REDIS_URL: Optional[str] = Field(default=None, env="REDIS_URL")
     
-    # AWS S3
-    AWS_ACCESS_KEY_ID: str = Field(env="AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY: str = Field(env="AWS_SECRET_ACCESS_KEY")
+    # AWS S3 (optional for local development)
+    AWS_ACCESS_KEY_ID: Optional[str] = Field(default=None, env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, env="AWS_SECRET_ACCESS_KEY")
     AWS_REGION: str = Field(default="us-east-1", env="AWS_REGION")
-    AWS_S3_BUCKET: str = Field(env="AWS_S3_BUCKET")
+    AWS_S3_BUCKET: Optional[str] = Field(default=None, env="AWS_S3_BUCKET")
     
     # Payment Processing
     STRIPE_PUBLISHABLE_KEY: str = Field(env="STRIPE_PUBLISHABLE_KEY")
@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     HUGGINGFACE_TOKEN: str = Field(env="HUGGINGFACE_TOKEN")
     RUNPOD_API_KEY: str = Field(default="", env="RUNPOD_API_KEY")
     AWS_EC2_INSTANCE_ID: str = Field(default="", env="AWS_EC2_INSTANCE_ID")
+    PIAPI_API_KEY: Optional[str] = Field(default=None, env="PIAPI_API_KEY")
     
     # Email
     SMTP_HOST: str = Field(default="smtp.gmail.com", env="SMTP_HOST")
@@ -56,6 +57,11 @@ class Settings(BaseSettings):
     # Rate Limiting
     RATE_LIMIT_REQUESTS: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
     RATE_LIMIT_WINDOW: int = Field(default=3600, env="RATE_LIMIT_WINDOW")
+    RATE_LIMIT_LOGIN_PER_MINUTE: int = Field(default=5, env="RATE_LIMIT_LOGIN_PER_MINUTE")
+    RATE_LIMIT_REGISTER_PER_HOUR: int = Field(default=3, env="RATE_LIMIT_REGISTER_PER_HOUR")
+    RATE_LIMIT_MOCKUP_GENERATION_PER_HOUR: int = Field(default=50, env="RATE_LIMIT_MOCKUP_GENERATION_PER_HOUR")
+    RATE_LIMIT_PAYMENTS_PER_HOUR: int = Field(default=10, env="RATE_LIMIT_PAYMENTS_PER_HOUR")
+    RATE_LIMIT_GENERAL_PER_MINUTE: int = Field(default=60, env="RATE_LIMIT_GENERAL_PER_MINUTE")
     
     # File Upload Limits
     MAX_FILE_SIZE: int = Field(default=10485760, env="MAX_FILE_SIZE")

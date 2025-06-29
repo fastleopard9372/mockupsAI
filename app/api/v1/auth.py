@@ -9,7 +9,8 @@ from app.core.auth import (
     verify_password, 
     get_password_hash, 
     create_token_pair,
-    verify_token
+    verify_token,
+    create_reset_token
 )
 from app.core.exceptions import (
     AuthenticationError, 
@@ -25,7 +26,9 @@ from app.schemas.auth import (
     RegisterRequest,
     RegisterResponse,
     ForgotPasswordRequest,
-    ForgotPasswordResponse
+    ForgotPasswordResponse,
+    ResetPasswordRequest,
+    ResetPasswordResponse
 )
 from app.schemas.user import UserResponse
 from app.api.deps import get_current_user, verify_token
@@ -167,14 +170,53 @@ async def forgot_password(
     # Always return success for security reasons
     # (don't reveal whether email exists)
     if user:
-        # TODO: Implement email service to send reset token
-        # For now, just log it
+        # Generate reset token
+        reset_token = create_reset_token(user.id, user.email)
+        
+        # TODO: Send email with reset token (email service disabled for now)
+        # For now, just log the reset token
+        logger.info(f"Password reset token for {user.email}: {reset_token}")
+        logger.info(f"Reset URL: {settings.FRONTEND_URL}/reset-password?token={reset_token}")
+        
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"Password reset requested for {request.email}")
     
     return ForgotPasswordResponse(
         message="If the email exists, a password reset link has been sent"
+    )
+
+
+@router.post("/auth/reset-password", response_model=ResetPasswordResponse)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db = Depends(get_db)
+):
+    """Reset user password using reset token"""
+    # Verify reset token
+    payload = verify_token(request.token, "reset")
+    
+    if payload is None:
+        raise AuthenticationError("Invalid or expired reset token")
+    
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise AuthenticationError("Invalid token payload")
+    
+    # Find user
+    user = await db.user.find_unique(where={"id": user_id})
+    if not user:
+        raise NotFoundError("User not found")
+    
+    # Update password
+    hashed_password = get_password_hash(request.new_password)
+    await db.user.update(
+        where={"id": user_id},
+        data={"password_hash": hashed_password}
+    )
+    
+    return ResetPasswordResponse(
+        message="Password has been reset successfully"
     )
 
 

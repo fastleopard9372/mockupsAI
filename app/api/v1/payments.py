@@ -35,16 +35,20 @@ async def stripe_webhook(
         raise HTTPException(status_code=400, detail="Invalid signature")
     
     # Handle the event
-    if event["type"] == "payment_intent.succeeded":
+    event_type = event["type"]
+    logger.info(f"Processing webhook event: {event_type}")
+    
+    # Process webhook immediately (no background tasks)
+    if event_type == "payment_intent.succeeded":
         await handle_payment_success(event["data"]["object"], db)
-    elif event["type"] == "payment_intent.payment_failed":
+    elif event_type == "payment_intent.payment_failed":
         await handle_payment_failure(event["data"]["object"], db)
-    elif event["type"] == "invoice.payment_succeeded":
+    elif event_type == "invoice.payment_succeeded":
         await handle_subscription_payment_success(event["data"]["object"], db)
-    elif event["type"] == "customer.subscription.deleted":
+    elif event_type == "customer.subscription.deleted":
         await handle_subscription_cancelled(event["data"]["object"], db)
     else:
-        logger.info(f"Unhandled event type: {event['type']}")
+        logger.info(f"Unhandled event type: {event_type}")
     
     return {"status": "success"}
 

@@ -70,6 +70,15 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def create_reset_token(user_id: str, email: str) -> str:
+    """Create password reset token"""
+    to_encode = {"sub": user_id, "email": email, "type": "reset"}
+    expire = datetime.utcnow() + timedelta(hours=1)  # 1 hour expiry
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 def create_token_pair(user_id: str, email: str) -> dict:
     """Create access and refresh token pair"""
     token_data = {"sub": user_id, "email": email}

@@ -6,7 +6,7 @@ from typing import Optional
 
 from app.workers.celery_app import celery_app
 from app.config.database import get_db
-from app.services.ai_service import ai_service
+from app.services.ai_service import AIService
 from app.services.email_service import EmailService
 from prisma.enums import MockupStatus
 
@@ -24,12 +24,11 @@ def run_async(coro):
     return loop.run_until_complete(coro)
 
 
-# @celery_app.task(bind=True, max_retries=3)
-# def generate_mockup_task(self, mockup_id: str):
-async def  generate_mockup_task(mockup_id: str):
+@celery_app.task(bind=True, max_retries=3)
+def generate_mockup_task(self, mockup_id: str):
     """Generate mockup using AI service"""
-    # async def _generate():
-    db = await get_db()
+    async def _generate():
+        db = await get_db()
     logger.info(f"====================Starting mockup generation for ID: {mockup_id}")
     try:
         # Get mockup details
@@ -45,23 +44,24 @@ async def  generate_mockup_task(mockup_id: str):
         )
         
         # Update task progress
-        if current_task:
-            current_task.update_state(
+        if self:
+            self.update_state(
                 state='PROGRESS',
                 meta={'current': 25, 'total': 100, 'status': 'Processing images...'}
             )
         
         start_time = datetime.utcnow()
         
-        # Initialize AI service if needed
+        # Initialize AI service
+        ai_service = AIService()
         if not ai_service.pipeline:
             await ai_service.initialize_models()
         
-        # if current_task:
-        #     current_task.update_state(
-        #         state='PROGRESS',
-        #         meta={'current': 50, 'total': 100, 'status': 'Generating mockup...'}
-        #     )
+        if self:
+            self.update_state(
+                state='PROGRESS',
+                meta={'current': 50, 'total': 100, 'status': 'Generating mockup...'}
+            )
         
         # Generate mockup
         result_url = await ai_service.generate_mockup(
@@ -141,13 +141,12 @@ async def  generate_mockup_task(mockup_id: str):
         # if self.request.retries < self.max_retries:
         #     raise self.retry(countdown=60, exc=e)
         
-        raise e
+            raise e
+        
+        finally:
+            await db.disconnect()
     
-    finally:
-        await db.disconnect()
-    
-    # return run_async(_generate())
-    # return _generate()
+    return run_async(_generate())
 
 
 @celery_app.task

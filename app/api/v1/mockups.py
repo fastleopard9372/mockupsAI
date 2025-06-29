@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query
 from typing import Optional, List
 from prisma.models import User
 from pathlib import Path
@@ -9,7 +9,7 @@ from app.config.settings import settings
 from app.api.deps import get_current_user
 import logging
 
-from app.workers.tasks import generate_mockup_task
+logger = logging.getLogger(__name__)
 
 from app.core.exceptions import (
     ValidationError, 
@@ -28,7 +28,6 @@ from app.schemas.mockup import (
 )
 from app.services.image_service import validate_image, upload_image
 from app.services.storage_service import StorageService
-from app.workers.tasks import generate_mockup_task
 import uuid
 
 router = APIRouter()
@@ -104,9 +103,9 @@ async def get_marking_techniques():
 
 @router.post("/mockups/upload", response_model=dict)
 async def upload_mockup_images(
+    mockup_id: Optional[str] = Form(None),
     image: UploadFile = File(...),
     type: str = Form(..., regex="^(products|logos)$"),
-    mockup_id: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
 ):
@@ -139,12 +138,29 @@ async def upload_mockup_images(
             if mockup.user_id != current_user.id:
                 raise NotFoundError("Mockup not found")
             
+            # Remove existing image if it exists
+            existing_image_url = None
+            if type == "products" and mockup.product_image_url:
+                existing_image_url = mockup.product_image_url
+            elif type == "logos" and mockup.logo_image_url:
+                existing_image_url = mockup.logo_image_url
+            
+            if existing_image_url:
+                # Extract filename from URL (remove /uploads/ prefix)
+                if existing_image_url.startswith('/uploads/'):
+                    existing_filename = existing_image_url[9:]  # Remove '/uploads/' prefix
+                    try:
+                        await storage.delete_file(existing_filename)
+                        logging.info(f"Deleted existing {type} image: {existing_filename}")
+                    except Exception as e:
+                        logging.warning(f"Failed to delete existing image {existing_filename}: {e}")
+            
             # Update mockup with new image URL
             update_data = {}
             if type == "products":
-                update_data["product_image_url"] = F'/uploads/{filename}'
+                update_data["product_image_url"] = f'/uploads/{filename}'
             elif type == "logos":
-                update_data["logo_image_url"] = F'/uploads/{filename}'
+                update_data["logo_image_url"] = f'/uploads/{filename}'
             
             if update_data:
                 await db.mockup.update(
@@ -164,7 +180,6 @@ async def upload_mockup_images(
 @router.post("/mockups", response_model=MockupResponse)
 async def create_mockup(
     request: MockupCreateRequest,
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
 ):
@@ -188,13 +203,13 @@ async def create_mockup(
             "product_id": None,
             "name": name,
             "marking_technique": technique,
-            "product_image_url":'/uploads/products/test.png',
-            "logo_image_url": '/uploads/logos/test.png',
+            "product_image_url": None,
+            "logo_image_url": None,
             "marking_zone_x": 0,
             "marking_zone_y": 0,
             "marking_zone_w": 1,
             "marking_zone_h": 1,
-            "logo_scale": 0,
+            "logo_scale": 1,
             "logo_rotation": 0,
             "logo_color": 'transparent',
             "status": MockupStatus.PENDING
@@ -214,12 +229,68 @@ async def create_mockup(
         data={"credit_id": credit_to_use.id}
     )
     
-    # Queue background task for AI generation
-    background_tasks.add_task(generate_mockup_task.delay, mockup.id)
-    
-    generate_mockup_task(mockup.id)
-    
     return MockupResponse.from_orm(mockup)
+
+
+@router.post("/mockups/{mockup_id}/generate", response_model=MockupResponse)
+async def generate_mockup_endpoint(
+    mockup_id: str,
+    current_user: User = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """Generate mockup after images are uploaded"""
+    mockup = await db.mockup.find_unique(
+        where={"id": mockup_id}
+    )
+    
+    if not mockup or mockup.user_id != current_user.id:
+        raise NotFoundError("Mockup not found")
+    
+    if not mockup.product_image_url or not mockup.logo_image_url:
+        raise ValidationError("Product and logo images must be uploaded first")
+    
+    # Generate mockup synchronously
+    try:
+        from app.services.ai_service import AIService
+        ai_service = AIService()
+        
+        # Generate mockup directly
+        result_url = await ai_service.generate_mockup(
+            product_image_url=mockup.product_image_url,
+            logo_image_url=mockup.logo_image_url,
+            marking_zone=(
+                mockup.marking_zone_x,
+                mockup.marking_zone_y,
+                mockup.marking_zone_w,
+                mockup.marking_zone_h
+            ),
+            marking_technique=mockup.marking_technique,
+            logo_scale=mockup.logo_scale,
+            logo_rotation=mockup.logo_rotation
+        )
+        
+        # Update mockup with result
+        updated_mockup = await db.mockup.update(
+            where={"id": mockup_id},
+            data={
+                "status": MockupStatus.COMPLETED,
+                "result_image_url": result_url
+            }
+        )
+        
+        return MockupResponse.from_orm(updated_mockup)
+        
+    except Exception as e:
+        logger.error(f"Error generating mockup: {e}")
+        # Update mockup with error
+        await db.mockup.update(
+            where={"id": mockup_id},
+            data={
+                "status": MockupStatus.FAILED,
+                "error_message": str(e)
+            }
+        )
+        raise
 
 
 @router.get("/mockups", response_model=MockupListResponse)
@@ -343,7 +414,7 @@ async def update_mockup(
 @router.post("/mockups/{mockup_id}/regenerate", response_model=MockupResponse)
 async def regenerate_mockup(
     mockup_id: str,
-    # background_tasks: BackgroundTasks,
+    mockup_update: MockupUpdate,
     current_user: User = Depends(get_current_user),
     db = Depends(get_db)
 ):
@@ -370,21 +441,60 @@ async def regenerate_mockup(
         data={"used": credit_to_use.used + 1}
     )
     
-    # Reset mockup status
+    # Apply mockup updates first
+    update_data = mockup_update.dict(exclude_unset=True)
+    update_data.update({
+        "status": MockupStatus.PENDING,
+        "result_image_url": None,
+        "error_message": None,
+        "processing_time": None
+    })
+    
+    # Update mockup with new parameters and reset status
     updated_mockup = await db.mockup.update(
         where={"id": mockup_id},
-        data={
-            "status": MockupStatus.PENDING,
-            "result_image_url": None,
-            "error_message": None,
-            "processing_time": None
-        }
+        data=update_data
     )
-    
-    # Queue background task
-    logging.info(f"=================Regenerating mockup {mockup_id} for user {current_user.id}")
-    # background_tasks.add_task(generate_mockup_task.delay, mockup_id)
-    await generate_mockup_task(mockup_id=mockup_id)
+
+    # Generate mockup synchronously (no background tasks needed with streaming API)
+    try:
+        from app.services.ai_service import AIService
+        ai_service = AIService()
+        
+        # Generate mockup directly
+        result_url = await ai_service.generate_mockup(
+            product_image_url=updated_mockup.product_image_url,
+            logo_image_url=updated_mockup.logo_image_url,
+            marking_zone=(
+                updated_mockup.marking_zone_x,
+                updated_mockup.marking_zone_y,
+                updated_mockup.marking_zone_w,
+                updated_mockup.marking_zone_h
+            ),
+            marking_technique=updated_mockup.marking_technique,
+            logo_scale=updated_mockup.logo_scale,
+            logo_rotation=updated_mockup.logo_rotation
+        )
+        
+        # Update mockup with result
+        updated_mockup = await db.mockup.update(
+            where={"id": mockup_id},
+            data={
+                "status": MockupStatus.COMPLETED,
+                "result_image_url": result_url
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error regenerating mockup: {e}")
+        # Update mockup with error
+        updated_mockup = await db.mockup.update(
+            where={"id": mockup_id},
+            data={
+                "status": MockupStatus.FAILED,
+                "error_message": str(e)
+            }
+        )
     
     return MockupResponse.from_orm(updated_mockup)
 

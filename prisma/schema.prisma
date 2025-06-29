@@ -98,8 +98,8 @@ model Mockup {
   name              String?
   status            MockupStatus     @default(PENDING)
   marking_technique MarkingTechnique
-  product_image_url String
-  logo_image_url    String
+  product_image_url String?
+  logo_image_url    String?
   result_image_url  String?
   marking_zone_x    Float
   marking_zone_y    Float
