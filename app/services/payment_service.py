@@ -55,9 +55,12 @@ class PaymentService:
                 currency=currency,
                 customer=customer["id"],
                 payment_method=payment_method_id,
-                confirmation_method="manual",
                 confirm=True,
-                metadata=metadata or {}
+                metadata=metadata or {},
+                automatic_payment_methods={
+                    "enabled": True,
+                    "allow_redirects": "never"
+                }
             )
             
             return payment_intent
