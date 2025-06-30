@@ -14,7 +14,7 @@ class StorageService:
     """Service for handling file storage with AWS S3 or local storage"""
     
     def __init__(self, upload_folder: str = "uploads"):
-        self.use_s3 = Null;#self._should_use_s3()
+        self.use_s3 = self._should_use_s3()
         self.upload_folder = upload_folder
         
         if self.use_s3:

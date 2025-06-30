@@ -51,7 +51,7 @@ class AIService:
         """Convert relative URL to absolute URL for API"""
         if url.startswith('/'):
             # For local development, use localhost
-            base_url = getattr(settings, 'BASE_URL', 'http://localhost:8000')
+            base_url = getattr(settings, 'BASE_URL', 'http://localhost:5371')
             return f"{base_url}{url}"
         return url
     
@@ -137,9 +137,17 @@ class AIService:
     ) -> Image.Image:
         """Generate mockup using piapi.ai API"""
         try:
-            # Convert relative URLs to absolute URLs
-            product_url = self.get_absolute_url(product_image_url)
-            logo_url = self.get_absolute_url(logo_image_url)
+            # Download and encode images as base64
+            product_image = await self.download_image(product_image_url)
+            logo_image = await self.download_image(logo_image_url)
+            
+            # Convert images to base64
+            import base64
+            product_bytes = image_to_bytes(product_image, 'PNG')
+            logo_bytes = image_to_bytes(logo_image, 'PNG')
+            
+            product_b64 = base64.b64encode(product_bytes).decode('utf-8')
+            logo_b64 = base64.b64encode(logo_bytes).decode('utf-8')
             
             # Get technique-specific prompt
             technique_prompt = self.get_technique_prompt(technique)
@@ -152,7 +160,7 @@ class AIService:
             opacity_percent = 100 if logo_color != 'transparent' else 100
             
             # Create the prompt for logo overlay
-            prompt_text = f"Please overlay the second image (logo) onto the first image (product). Place the logo at position x={x_pos}px and y={y_pos}px. Rotate it by {rotation_degrees} degrees around its center. Scale the logo by {scale_percent}% from its original size. Apply a {technique_prompt} with {opacity_percent}% opacity. Ensure the logo blends naturally with the surface."
+            prompt_text = f"Create Image to overlay the second image (logo) onto the first image (product). Place the logo at position x={x_pos}px and y={y_pos}px. Rotate it by {rotation_degrees} degrees around its center. Scale the logo by {scale_percent}% from its original size. Apply a {technique_prompt} with {opacity_percent}% opacity. Ensure the logo blends naturally with the surface."
             
             # Prepare the request payload
             payload = {
@@ -164,13 +172,13 @@ class AIService:
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": product_url
+                                    "url": "https://dev.bookbabes.club/1.png" #f"data:image/png;base64,{product_b64}"
                                 }
                             },
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": logo_url
+                                    "url": "https://dev.bookbabes.club/2.png" #f"data:image/png;base64,{logo_b64}"
                                 }
                             },
                             {
@@ -182,13 +190,10 @@ class AIService:
                 ],
                 "stream": True
             }
-            
             headers = {
                 'Content-Type': 'application/json',
                 'Authorization': f'Bearer {self.api_key}'
             }
-            
-            # Make the API request
             response = requests.post(
                 self.api_url,
                 headers=headers,
@@ -196,6 +201,7 @@ class AIService:
                 stream=True,
                 timeout=240
             )
+            
             response.raise_for_status()
             
             # Process the streaming response
@@ -203,26 +209,32 @@ class AIService:
             for line in response.iter_lines():
                 if line:
                     line_str = line.decode('utf-8')
+                    logger.info(f"Received line: {line_str}")
                     if line_str.startswith('data: '):
                         data_str = line_str[6:]  # Remove 'data: ' prefix
                         if data_str.strip() == '[DONE]':
+                            logger.info("Received [DONE] marker")
                             break
                         try:
                             data = json.loads(data_str)
+                            logger.info(f"Parsed JSON data: {data}")
                             if 'choices' in data and len(data['choices']) > 0:
                                 delta = data['choices'][0].get('delta', {})
                                 if 'content' in delta:
-                                    result_data += delta['content']
-                        except json.JSONDecodeError:
+                                    content = delta['content']
+                                    logger.info(f"Received content: {content}")
+                                    result_data += content
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Failed to parse JSON: {data_str}, error: {e}")
                             continue
+            
+            logger.info(f"Complete result_data: {result_data}")
             
             # For now, if piapi returns text instead of image, fallback to traditional method
             # In a real implementation, you'd need to handle the actual image response from piapi
             logger.warning("piapi.ai returned text response, falling back to traditional method")
             
             # Fallback to traditional method
-            product_image = await self.download_image(product_image_url)
-            logo_image = await self.download_image(logo_image_url)
             return apply_logo_to_product(
                 product_image, logo_image, marking_zone,
                 logo_scale, logo_rotation, logo_color, technique

@@ -38,19 +38,16 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized successfully")
     
     # Initialize AI models (only in production or if explicitly enabled)
-    if not settings.DEBUG or os.getenv("INIT_AI_MODELS", "false").lower() == "true":
-        try:
-            from app.services.ai_service import AIService
-            ai_service = AIService()
-            await ai_service.initialize_models()
-            logger.info("AI models initialized successfully")
-            # Store in app state for reuse
-            app.state.ai_service = ai_service
-        except Exception as e:
-            logger.error(f"Failed to initialize AI models: {e}")
-            logger.info("AI models will be initialized on first use")
-    else:
-        logger.info("AI model initialization skipped (development mode)")
+    try:
+        from app.services.ai_service import AIService
+        ai_service = AIService()
+        await ai_service.initialize_models()
+        logger.info("AI models initialized successfully")
+        # Store in app state for reuse
+        app.state.ai_service = ai_service
+    except Exception as e:
+        logger.error(f"Failed to initialize AI models: {e}")
+        logger.info("AI models will be initialized on first use")
 
     yield
     

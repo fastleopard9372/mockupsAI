@@ -6,6 +6,7 @@ import os
 
 class Settings(BaseSettings):
     # Application
+    BASE_URL: str = Field(env="BASE_URL")
     APP_NAME: str = Field(default="AI Mockup Platform", env="APP_NAME")
     APP_VERSION: str = Field(default="1.0.0", env="APP_VERSION")
     DEBUG: bool = Field(default=False, env="DEBUG")
