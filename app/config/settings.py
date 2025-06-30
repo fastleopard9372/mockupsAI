@@ -101,6 +101,11 @@ class Settings(BaseSettings):
         }
     }
     
+    # Stripe Price IDs for subscription plans
+    STRIPE_PRICE_ID_BASIC: str = os.getenv("STRIPE_PRICE_ID_BASIC", "price_basic")
+    STRIPE_PRICE_ID_PRO: str = os.getenv("STRIPE_PRICE_ID_PRO", "price_pro")
+    STRIPE_PRICE_ID_PREMIUM: str = os.getenv("STRIPE_PRICE_ID_PREMIUM", "price_premium")
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

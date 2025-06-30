@@ -68,11 +68,22 @@ async def create_subscription(
     plan_info = settings.SUBSCRIPTION_PLANS[plan_key]
     
     try:
+        # Get the correct Stripe price ID for the plan
+        price_id_map = {
+            SubscriptionPlan.BASIC: settings.STRIPE_PRICE_ID_BASIC,
+            SubscriptionPlan.PRO: settings.STRIPE_PRICE_ID_PRO,
+            SubscriptionPlan.PREMIUM: settings.STRIPE_PRICE_ID_PREMIUM
+        }
+        price_id = price_id_map.get(subscription_data.plan)
+        
+        if not price_id:
+            raise ValidationError(f"Invalid subscription plan: {subscription_data.plan}")
+        
         # Create Stripe subscription
         payment_service = PaymentService()
         stripe_subscription = await payment_service.create_subscription(
             customer_id=current_user.id,
-            price_id=f"price_{plan_key.lower()}",  # Assuming you have price IDs in Stripe
+            price_id=price_id,
             payment_method_id=subscription_data.payment_method_id
         )
         
@@ -177,11 +188,22 @@ async def update_subscription(
             raise ValidationError("Invalid subscription plan")
         
         try:
+            # Get the correct Stripe price ID for the new plan
+            price_id_map = {
+                "BASIC": settings.STRIPE_PRICE_ID_BASIC,
+                "PRO": settings.STRIPE_PRICE_ID_PRO,
+                "PREMIUM": settings.STRIPE_PRICE_ID_PREMIUM
+            }
+            new_price_id = price_id_map.get(new_plan_key)
+            
+            if not new_price_id:
+                raise ValidationError(f"Invalid subscription plan: {new_plan_key}")
+            
             # Update Stripe subscription
             payment_service = PaymentService()
             await payment_service.update_subscription(
                 subscription.stripe_id,
-                new_price_id=f"price_{new_plan_key.lower()}"
+                new_price_id=new_price_id
             )
             
             # Update database
