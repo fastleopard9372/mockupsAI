@@ -43,25 +43,33 @@ class PaymentService:
         currency: str,
         customer_id: str,
         payment_method_id: str,
-        metadata: Optional[Dict[str, str]] = None
+        metadata: Optional[Dict[str, str]] = None,
+        idempotency_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create payment intent for one-time payment"""
         try:
             # Get or create customer
             customer = await self.create_customer(customer_id, f"user_{customer_id}@temp.com")
             
-            payment_intent = self.stripe.PaymentIntent.create(
-                amount=amount,
-                currency=currency,
-                customer=customer["id"],
-                payment_method=payment_method_id,
-                confirm=True,
-                metadata=metadata or {},
-                automatic_payment_methods={
+            create_params = {
+                "amount": amount,
+                "currency": currency,
+                "customer": customer["id"],
+                "payment_method": payment_method_id,
+                "metadata": metadata or {},
+                "automatic_payment_methods": {
                     "enabled": True,
                     "allow_redirects": "never"
                 }
-            )
+            }
+            
+            if idempotency_key:
+                payment_intent = self.stripe.PaymentIntent.create(
+                    **create_params,
+                    idempotency_key=idempotency_key
+                )
+            else:
+                payment_intent = self.stripe.PaymentIntent.create(**create_params)
             
             return payment_intent
             
