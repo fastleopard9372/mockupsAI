@@ -137,14 +137,6 @@ class AIService:
             product_image = await self.download_image(product_image_url)
             logo_image = await self.download_image(logo_image_url)
             
-            # Convert images to base64
-            import base64
-            product_bytes = image_to_bytes(product_image, 'PNG')
-            logo_bytes = image_to_bytes(logo_image, 'PNG')
-            
-            product_b64 = base64.b64encode(product_bytes).decode('utf-8')
-            logo_b64 = base64.b64encode(logo_bytes).decode('utf-8')
-            
             # Get technique-specific prompt
             technique_prompt = self.get_technique_prompt(technique)
             
