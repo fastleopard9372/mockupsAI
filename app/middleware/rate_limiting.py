@@ -133,8 +133,10 @@ rate_limiter = RateLimitMiddleware()
 
 async def rate_limit_middleware(request: Request, call_next):
     """Rate limiting middleware function"""
-    # Skip rate limiting for health checks and static files
-    if request.url.path in ["/health", "/"] or request.url.path.startswith("/uploads"):
+    # Skip rate limiting for health checks, static files, and webhooks
+    if (request.url.path in ["/health", "/"] or 
+        request.url.path.startswith("/uploads") or
+        request.url.path.startswith("/api/v1/payments/webhook")):
         return await call_next(request)
     
     # Get rate limit configuration
