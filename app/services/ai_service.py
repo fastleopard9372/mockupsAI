@@ -133,10 +133,6 @@ class AIService:
     ) -> Image.Image:
         """Generate mockup using piapi.ai API"""
         try:
-            # Download and encode images as base64
-            product_image = await self.download_image(product_image_url)
-            logo_image = await self.download_image(logo_image_url)
-            
             # Get technique-specific prompt
             technique_prompt = self.get_technique_prompt(technique)
             
@@ -146,7 +142,6 @@ class AIService:
             scale_percent = int(logo_scale * 100)
             rotation_degrees = int(logo_rotation)
             opacity_percent = 100 if logo_color != 'transparent' else 100
-            
             # Create the prompt for logo overlay
             prompt_text = f"""Overlay the second image (a logo) onto the first image (a product photo) with the following precise transformations:
                 'Position the logo at x={x_pos}px and y={y_pos}px relative to the top-left of the product image.'
@@ -194,7 +189,7 @@ class AIService:
                 headers=headers,
                 data=json.dumps(payload),
                 stream=True,
-                timeout=240
+                timeout=300
             )
             
             response.raise_for_status()

@@ -486,7 +486,6 @@ async def regenerate_mockup(
                 "result_image_url": result_url
             }
         )
-        
     except Exception as e:
         logger.error(f"Error regenerating mockup: {e}")
         # Update mockup with error
