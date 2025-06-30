@@ -90,7 +90,8 @@ class AIService:
         logo_scale: float = 1.0,
         logo_rotation: float = 0.0,
         logo_color: Optional[str] = None,
-        use_ai: bool = True
+        use_ai: bool = True,
+        user_id: Optional[str] = None
     ) -> str:
         """Generate mockup with logo applied to product using piapi.ai"""
         try:
@@ -100,21 +101,16 @@ class AIService:
                     product_image_url, logo_image_url, marking_zone, 
                     marking_technique, logo_scale, logo_rotation, logo_color
                 )
-            else:
-                # Use traditional image composition
-                product_image = await self.download_image(product_image_url)
-                logo_image = await self.download_image(logo_image_url)
-                result_image = apply_logo_to_product(
-                    product_image, logo_image, marking_zone,
-                    logo_scale, logo_rotation, logo_color, marking_technique
-                )
             
             # Upload result to storage
             result_bytes = image_to_bytes(result_image, 'PNG')
             
-            # Generate unique filename
+            # Generate unique filename with user folder structure
             import uuid
-            result_filename = f"mockups/{uuid.uuid4()}.png"
+            if user_id:
+                result_filename = f"mockups/{user_id}/{uuid.uuid4()}.png"
+            else:
+                result_filename = f"mockups/{uuid.uuid4()}.png"
             result_url = await self.storage_service.upload_from_bytes(
                 result_bytes, result_filename, 'image/png'
             )
@@ -160,7 +156,14 @@ class AIService:
             opacity_percent = 100 if logo_color != 'transparent' else 100
             
             # Create the prompt for logo overlay
-            prompt_text = f"Create Image to overlay the second image (logo) onto the first image (product). Place the logo at position x={x_pos}px and y={y_pos}px. Rotate it by {rotation_degrees} degrees around its center. Scale the logo by {scale_percent}% from its original size. Apply a {technique_prompt} with {opacity_percent}% opacity. Ensure the logo blends naturally with the surface."
+            prompt_text = f"""Overlay the second image (a logo) onto the first image (a product photo) with the following precise transformations:
+                'Position the logo at x={x_pos}px and y={y_pos}px relative to the top-left of the product image.'
+                'Rotate the logo by {rotation_degrees} degrees around its center.'
+                'Scale the logo to {scale_percent}% of its original size.'
+                'Apply a realistic {technique_prompt} effect (e.g. embossing, screen print, reflection) to blend the logo naturally into the product surface.'
+                'Set the logo’s opacity to {opacity_percent}%.'
+                I don't need a solution, I just need a synthetic image obtained by AI.
+                The final image should look like the logo is physically applied to the product, respecting the lighting, texture, and curvature of the surface. Return only the final composite image not code or explain."""
             
             # Prepare the request payload
             payload = {
@@ -230,25 +233,28 @@ class AIService:
             
             logger.info(f"Complete result_data: {result_data}")
             
-            # For now, if piapi returns text instead of image, fallback to traditional method
-            # In a real implementation, you'd need to handle the actual image response from piapi
-            logger.warning("piapi.ai returned text response, falling back to traditional method")
+            # Check if the response contains an image URL in markdown format
+            import re
+            image_url_pattern = r'!\[.*?\]\((https://[^)]+\.png)\)'
+            image_match = re.search(image_url_pattern, result_data)
             
-            # Fallback to traditional method
-            return apply_logo_to_product(
-                product_image, logo_image, marking_zone,
-                logo_scale, logo_rotation, logo_color, technique
-            )
+            if image_match:
+                image_url = image_match.group(1)
+                logger.info(f"Found generated image URL: {image_url}")
+                
+                try:
+                    # Download the generated image from piapi.ai
+                    generated_image = await self.download_image(image_url)
+                    logger.info("Successfully downloaded generated image from piapi.ai")
+                    return generated_image
+                except Exception as e:
+                    logger.error(f"Failed to download generated image: {e}")
+                    # Fall back to traditional method if download fails
+            else:
+                logger.warning("No image URL found in piapi.ai response, falling back to traditional method")
             
         except Exception as e:
             logger.error(f"Error in piapi.ai generation: {e}")
-            # Fallback to traditional method
-            product_image = await self.download_image(product_image_url)
-            logo_image = await self.download_image(logo_image_url)
-            return apply_logo_to_product(
-                product_image, logo_image, marking_zone,
-                logo_scale, logo_rotation, logo_color, technique
-            )
 
     def estimate_processing_time(self, use_ai: bool = True) -> int:
         """Estimate processing time in seconds"""

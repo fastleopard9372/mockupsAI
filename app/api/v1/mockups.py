@@ -266,7 +266,8 @@ async def generate_mockup_endpoint(
             ),
             marking_technique=mockup.marking_technique,
             logo_scale=mockup.logo_scale,
-            logo_rotation=mockup.logo_rotation
+            logo_rotation=mockup.logo_rotation,
+            user_id=current_user.id
         )
         
         # Update mockup with result
@@ -473,7 +474,8 @@ async def regenerate_mockup(
             ),
             marking_technique=updated_mockup.marking_technique,
             logo_scale=updated_mockup.logo_scale,
-            logo_rotation=updated_mockup.logo_rotation
+            logo_rotation=updated_mockup.logo_rotation,
+            user_id=current_user.id
         )
         
         # Update mockup with result
