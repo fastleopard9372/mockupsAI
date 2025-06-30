@@ -42,7 +42,6 @@ async def get_credit_packages():
     
     return CreditPackagesResponse(packages=packages)
 
-
 @router.post("/credits/purchase", response_model=dict)
 async def purchase_credits(
     purchase_data: CreditPurchase,
