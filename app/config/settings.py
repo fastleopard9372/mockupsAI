@@ -102,9 +102,9 @@ class Settings(BaseSettings):
     }
     
     # Stripe Price IDs for subscription plans
-    STRIPE_PRICE_ID_BASIC: str = os.getenv("STRIPE_PRICE_ID_BASIC", "price_basic")
-    STRIPE_PRICE_ID_PRO: str = os.getenv("STRIPE_PRICE_ID_PRO", "price_pro")
-    STRIPE_PRICE_ID_PREMIUM: str = os.getenv("STRIPE_PRICE_ID_PREMIUM", "price_premium")
+    STRIPE_PRICE_ID_BASIC: str = Field(default="price_basic", env="STRIPE_PRICE_ID_BASIC")
+    STRIPE_PRICE_ID_PRO: str = Field(default="price_pro", env="STRIPE_PRICE_ID_PRO")
+    STRIPE_PRICE_ID_PREMIUM: str = Field(default="price_premium", env="STRIPE_PRICE_ID_PREMIUM")
     
     class Config:
         env_file = ".env"
