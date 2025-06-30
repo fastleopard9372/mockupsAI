@@ -17,17 +17,6 @@ python-multipart==0.0.6
 celery==5.3.4
 redis==5.0.1
 
-# AI/ML
-torch==2.1.1
-torchvision==0.16.1
-diffusers==0.33.1
-transformers>=4.40.0
-accelerate==0.25.0
-controlnet-aux==0.0.6
-
-# Image processing
-Pillow==10.1.0
-opencv-python==4.8.1.78
 numpy==1.24.3
 
 # File storage

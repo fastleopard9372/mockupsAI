@@ -166,7 +166,7 @@ async def handle_subscription_cancelled(subscription_data, db):
         logger.error(f"Error handling subscription cancellation: {e}")
 
 
-@router.get("/payments/setup-intent")
+@router.post("/payments/setup-intent")
 async def create_setup_intent(
     current_user: User = Depends(get_current_user)
 ):
