@@ -112,6 +112,15 @@ async def login(
         data={"last_login": datetime.utcnow()}
     )
     
+    # Get user's credit balance
+    credits = await db.credit.find_many(
+        where={"user_id": user.id}
+    )
+    
+    total_credits = sum(c.amount for c in credits)
+    used_credits = sum(c.used for c in credits)
+    available_credits = total_credits - used_credits
+    
     # Create tokens
     tokens = create_token_pair(user.id, user.email)
     
@@ -122,7 +131,8 @@ async def login(
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "role": user.role
+            "role": user.role,
+            "credits": available_credits
         }
     )
 

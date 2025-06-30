@@ -59,6 +59,7 @@ async def purchase_credits(
     try:
         # Process payment
         payment_service = PaymentService()
+        idempotency_key = f"credit_purchase_{current_user.id}_{purchase_data.amount}_{int(datetime.utcnow().timestamp())}"
         payment_intent = await payment_service.create_payment_intent(
             amount=int(price * 100),  # Convert to cents
             currency="eur",
@@ -68,7 +69,8 @@ async def purchase_credits(
                 "type": "credit_purchase",
                 "user_id": current_user.id,
                 "credit_amount": purchase_data.amount
-            }
+            },
+            idempotency_key=idempotency_key
         )
         
         # Create payment record
