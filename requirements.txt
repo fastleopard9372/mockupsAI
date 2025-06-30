@@ -47,4 +47,4 @@ mypy==1.7.1
 # Environment
 python-dotenv==1.0.0
 Pillow==10.3.0
-cv
+cv2
