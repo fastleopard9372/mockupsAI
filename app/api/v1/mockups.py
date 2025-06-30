@@ -187,14 +187,14 @@ async def create_mockup(
     name = request.name
     technique = request.technique
     # Check if user has available credits
-    available_credits = await db.credit.find_many(
-        where={"user_id": current_user.id}
-    )
+    # available_credits = await db.credit.find_many(
+    #     where={"user_id": current_user.id}
+    # )
     
-    total_available = sum(c.amount - c.used for c in available_credits)
-    logging.info(f"total_available:{total_available}")
-    if total_available < 1:
-        raise InsufficientCreditsError("Insufficient credits to generate mockup")
+    # total_available = sum(c.amount - c.used for c in available_credits)
+    # logging.info(f"total_available:{total_available}")
+    # if total_available < 1:
+    #     raise InsufficientCreditsError("Insufficient credits to generate mockup")
     
     # Create mockup record
     mockup = await db.mockup.create(
@@ -217,20 +217,19 @@ async def create_mockup(
     )
     
     # Deduct credit
-    credit_to_use = next(c for c in available_credits if c.amount > c.used)
-    await db.credit.update(
-        where={"id": credit_to_use.id},
-        data={"used": credit_to_use.used + 1}
-    )
+    # credit_to_use = next(c for c in available_credits if c.amount > c.used)
+    # await db.credit.update(
+    #     where={"id": credit_to_use.id},
+    #     data={"used": credit_to_use.used + 1}
+    # )
     
-    # Update mockup with credit reference
-    await db.mockup.update(
-        where={"id": mockup.id},
-        data={"credit_id": credit_to_use.id}
-    )
+    # # Update mockup with credit reference
+    # await db.mockup.update(
+    #     where={"id": mockup.id},
+    #     data={"credit_id": credit_to_use.id}
+    # )
     
     return MockupResponse.from_orm(mockup)
-
 
 @router.post("/mockups/{mockup_id}/generate", response_model=MockupResponse)
 async def generate_mockup_endpoint(
