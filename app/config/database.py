@@ -15,6 +15,8 @@ async def init_db():
         await db.connect()
         logger.info("Database connected successfully")
     except PrismaError as e:
+        subprocess.run(["prisma", "py", "fetch"], check=True)
+        await db.connect()
         logger.error(f"Failed to connect to database: {e}")
         raise
 
