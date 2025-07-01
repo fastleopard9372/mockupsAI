@@ -1,9 +1,9 @@
 generator client {
   provider                   = "prisma-client-py"
   binaryTargets              = ["native", "debian-openssl-3.0.x"]
-  previewFeatures            = ["decimal"] 
-  enable_experimental_decimal = true      
+  enable_experimental_decimal = true
 }
+
 generator client {
   provider = "prisma-client-py"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
