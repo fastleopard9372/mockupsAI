@@ -6,6 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Global database instance
+os.environ["PRISMA_QUERY_ENGINE_BINARY"] = "./prisma_binaries/prisma-query-engine-debian-openssl-3.0.x"
 db = Prisma()
 
 
