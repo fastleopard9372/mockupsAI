@@ -2,11 +2,9 @@ from prisma import Prisma
 from prisma.errors import PrismaError
 from app.config.settings import settings
 import logging
-import os
 logger = logging.getLogger(__name__)
 
 # Global database instance
-os.environ["PRISMA_QUERY_ENGINE_BINARY"] = "./prisma_binaries/prisma-query-engine-debian-openssl-3.0.x"
 db = Prisma()
 
 
