@@ -2,11 +2,7 @@ services:
   - type: web
     name: fastleopard-backend
     env: python
-    buildCommand: |
-      pip install -r requirements.txt
-      python -m prisma generate
-      python -m prisma py fetch --force
-      mkdir -p prisma_binaries
+    buildCommand: ./build.sh
     startCommand: ./start.sh
     envVars:
       - key: DATABASE_URL
