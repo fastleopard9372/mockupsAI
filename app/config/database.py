@@ -3,33 +3,65 @@ from prisma.errors import PrismaError
 from app.config.settings import settings
 import logging
 import subprocess
+import asyncio
+import os
+
 logger = logging.getLogger(__name__)
 
 # Global database instance
 db = Prisma()
 
-
-
 async def init_db():
     """Initialize database connection"""
-    max_retries = 3
-    retry_delay = 2
+    max_retries = 5
+    retry_delay = 3
+    
+    # First, ensure binaries are fetched
+    if not os.path.exists("/opt/render/project/src/prisma-query-engine-debian-openssl-3.0.x"):
+        logger.info("Prisma binaries not found, fetching...")
+        try:
+            result = subprocess.run(
+                ["python", "-m", "prisma", "py", "fetch", "--force"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            logger.info(f"Prisma fetch output: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"Prisma fetch stderr: {result.stderr}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to fetch Prisma binaries: {e}")
+            logger.error(f"stdout: {e.stdout}")
+            logger.error(f"stderr: {e.stderr}")
     
     for attempt in range(max_retries):
         try:
+            logger.info(f"Attempting database connection (attempt {attempt + 1}/{max_retries})...")
             await db.connect()
             logger.info("Database connected successfully")
             return
         except Exception as e:
-            if "BinaryNotFoundError" in str(e) and attempt < max_retries - 1:
-                logger.warning(f"Prisma binaries not ready, retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+            error_msg = str(e)
+            logger.error(f"Database connection failed: {error_msg}")
+            
+            if "BinaryNotFoundError" in error_msg and attempt < max_retries - 1:
+                logger.warning(f"Retrying in {retry_delay}s...")
+                
+                # Try alternative fetch methods
                 try:
+                    # Method 1: Direct prisma py fetch
                     subprocess.run(["prisma", "py", "fetch", "--force"], check=True)
                 except:
-                    pass
+                    try:
+                        # Method 2: Python module approach
+                        subprocess.run(["python", "-m", "prisma", "py", "fetch", "--force"], check=True)
+                    except:
+                        logger.error("All fetch attempts failed")
+                
                 await asyncio.sleep(retry_delay)
+                retry_delay *= 1.5  # Exponential backoff
             else:
-                logger.error(f"Failed to connect to database: {e}")
+                logger.error(f"Failed to connect after {max_retries} attempts")
                 raise
 
 async def close_db():

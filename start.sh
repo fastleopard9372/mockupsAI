@@ -2,14 +2,25 @@
 
 echo "Starting application setup..."
 
-# Fetch Prisma binaries at runtime
-echo "Fetching Prisma binaries..."
+# Ensure Prisma CLI is available
+echo "Installing Prisma CLI"
+pip install prisma
+
+# Generate Prisma Client
+echo "Generating Prisma Client..."
 prisma generate
-prisma py fetch --force
 
-# Wait a moment for binaries to be properly set up
-sleep 2
+# Fetch Prisma binaries with proper Python path
+echo "Fetching Prisma binaries..."
+python -m prisma py fetch --force
 
-# Start the application using the PORT environment variable
+# Verify binaries exist
+echo "Verifying Prisma setup..."
+python -c "from prisma import Prisma; print('Prisma import successful')"
+
+# Wait for binaries to settle
+sleep 3
+
+# Start the application
 echo "Starting FastAPI application..."
 exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
