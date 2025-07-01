@@ -2,7 +2,7 @@ from prisma import Prisma
 from prisma.errors import PrismaError
 from app.config.settings import settings
 import logging
-
+import subprocess
 logger = logging.getLogger(__name__)
 
 # Global database instance
