@@ -2,37 +2,43 @@
 
 echo "Starting application setup..."
 
-# Ensure Prisma CLI is available
-echo "Installing Prisma CLI"
-pip install prisma
+# Create the expected directory structure
+echo "Creating prisma binaries directory..."
+mkdir -p /opt/render/project/src/prisma_binaries
+
+# Set environment for Prisma
+export PRISMA_HOME=/opt/render/project/src/prisma_binaries
+export PRISMA_BINARIES_MIRROR=https://binaries.prisma.sh
 
 # Generate Prisma Client
 echo "Generating Prisma Client..."
 prisma generate
 
-# Fetch Prisma binaries with proper Python path
+# Fetch binaries to the specific location
 echo "Fetching Prisma binaries..."
+cd /opt/render/project/src
 python -m prisma py fetch --force
 
-# Verify binaries exist
-echo "Verifying Prisma setup..."
-python -c "from prisma import Prisma; print('Prisma import successful')"
+# Copy binary to expected location if needed
+if [ -f "/opt/render/.cache/prisma-python/binaries/4.15.0/*/prisma-query-engine-debian-openssl-3.0.x" ]; then
+    echo "Copying binary to expected location..."
+    cp /opt/render/.cache/prisma-python/binaries/4.15.0/*/prisma-query-engine-debian-openssl-3.0.x /opt/render/project/src/
+    chmod +x /opt/render/project/src/prisma-query-engine-debian-openssl-3.0.x
+fi
 
-# Wait for binaries to settle
-sleep 3
+# Also try to find and copy from any location
+find /opt/render -name "prisma-query-engine-debian-openssl-3.0.x" -type f -exec cp {} /opt/render/project/src/ \; 2>/dev/null || true
+find /opt/render -name "prisma-query-engine-debian-openssl-3.0.x" -type f -exec chmod +x {} \; 2>/dev/null || true
+
+# List files to debug
+echo "Checking for binaries..."
+ls -la /opt/render/project/src/prisma* 2>/dev/null || echo "No binaries in src root"
+ls -la /opt/render/project/src/prisma_binaries/ 2>/dev/null || echo "No binaries in prisma_binaries"
+
+# Wait for file system to settle
+sleep 2
 
 # Start the application
 echo "Starting FastAPI application..."
+cd /opt/render/project/src
 exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
-
-#!/usr/bin/env bash# 
-# pip install -r requirements.txt
-# prisma generate 
-# # Store/pull Prisma cache with build cache
-# if [[! -d $PRISMA_BINARY_CACHE_DIR]]; 
-# then echo "...Copying Prisma Binary Cache from Build Cache" 
-#     cp -R $XDG_CACHE_HOME/prisma/binaries $PRISMA_BINARY_CACHE_DIR
-# else 
-#     echo "...Storing Prisma Binary Cache in Build Cache" 
-#     cp -R $PRISMA_BINARY_CACHE_DIR $XDG_CACHE_HOME
-# fi
