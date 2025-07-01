@@ -9,17 +9,28 @@ logger = logging.getLogger(__name__)
 db = Prisma()
 
 
+
 async def init_db():
     """Initialize database connection"""
-    try:
-        await db.connect()
-        logger.info("Database connected successfully")
-    except PrismaError as e:
-        subprocess.run(["prisma", "py", "fetch"], check=True)
-        await db.connect()
-        logger.error(f"Failed to connect to database: {e}")
-        raise
-
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            await db.connect()
+            logger.info("Database connected successfully")
+            return
+        except Exception as e:
+            if "BinaryNotFoundError" in str(e) and attempt < max_retries - 1:
+                logger.warning(f"Prisma binaries not ready, retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                try:
+                    subprocess.run(["prisma", "py", "fetch", "--force"], check=True)
+                except:
+                    pass
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error(f"Failed to connect to database: {e}")
+                raise
 
 async def close_db():
     """Close database connection"""

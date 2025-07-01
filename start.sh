@@ -7,6 +7,9 @@ echo "Fetching Prisma binaries..."
 prisma generate
 prisma py fetch --force
 
-# Start the application
+# Wait a moment for binaries to be properly set up
+sleep 2
+
+# Start the application using the PORT environment variable
 echo "Starting FastAPI application..."
-exec uvicorn app.main:app --host 0.0.0.0 --port 5371
+exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
