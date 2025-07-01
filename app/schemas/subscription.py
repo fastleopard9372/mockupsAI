@@ -18,10 +18,11 @@ class SubscriptionResponse(BaseModel):
     user_id: str
     plan: SubscriptionPlan
     status: SubscriptionStatus
-    current_period_start: datetime
-    current_period_end: datetime
+    current_period_start: Optional[datetime] = None
+    current_period_end: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    client_secret: Optional[str] = None
     
     class Config:
         from_attributes = True

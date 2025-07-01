@@ -128,22 +128,46 @@ async def handle_subscription_payment_success(invoice, db):
         )
         
         if subscription:
-            # Add monthly credits based on plan
-            plan_credits = settings.SUBSCRIPTION_PLANS[subscription.plan]["credits_per_month"]
-            
+            from prisma.enums import SubscriptionStatus
             from datetime import datetime, timedelta
+            
+            # Update subscription to ACTIVE status
+            await db.subscription.update(
+                where={"id": subscription.id},
+                data={"status": SubscriptionStatus.ACTIVE}
+            )
+            
+            # Update user role to SUBSCRIBED
+            await db.user.update(
+                where={"id": subscription.user_id},
+                data={"role": "SUBSCRIBED"}
+            )
+            
+            # Add monthly credits based on plan (only if this is the first payment)
+            plan_credits = settings.SUBSCRIPTION_PLANS[subscription.plan]["credits_per_month"]
             expires_at = datetime.utcnow() + timedelta(days=30)
             
-            await db.credit.create(
-                data={
+            # Check if we already added initial credits for this subscription
+            existing_credits = await db.credit.find_first(
+                where={
                     "user_id": subscription.user_id,
-                    "amount": plan_credits,
-                    "used": 0,
-                    "expires_at": expires_at
+                    "created_at": {"gte": subscription.created_at}
                 }
             )
             
-            logger.info(f"Added {plan_credits} subscription credits to user {subscription.user_id}")
+            if not existing_credits:
+                await db.credit.create(
+                    data={
+                        "user_id": subscription.user_id,
+                        "amount": plan_credits,
+                        "used": 0,
+                        "expires_at": expires_at
+                    }
+                )
+                
+                logger.info(f"Added {plan_credits} initial subscription credits to user {subscription.user_id}")
+            
+            logger.info(f"Activated subscription {subscription.id} for user {subscription.user_id}")
         
     except Exception as e:
         logger.error(f"Error handling subscription payment: {e}")

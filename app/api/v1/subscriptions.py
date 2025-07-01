@@ -19,6 +19,10 @@ from app.schemas.subscription import (
 from app.services.payment_service import PaymentService
 from datetime import datetime, timedelta
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -88,34 +92,57 @@ async def create_subscription(
         )
         
         # Create subscription record
+        subscription_status = SubscriptionStatus.ACTIVE if stripe_subscription.get("status") == "active" else SubscriptionStatus.INACTIVE
+        
+        # Handle period dates - use current time as default for incomplete subscriptions
+        current_time = datetime.utcnow()
+        if stripe_subscription.get("current_period_start"):
+            period_start = datetime.fromtimestamp(stripe_subscription["current_period_start"])
+        else:
+            period_start = current_time
+            
+        if stripe_subscription.get("current_period_end"):
+            period_end = datetime.fromtimestamp(stripe_subscription["current_period_end"])
+        else:
+            # Set end date to 1 month from now as default
+            period_end = current_time + timedelta(days=30)
+        
         subscription = await db.subscription.create(
             data={
                 "user_id": current_user.id,
                 "plan": subscription_data.plan,
-                "status": SubscriptionStatus.ACTIVE,
+                "status": subscription_status,
                 "stripe_id": stripe_subscription["id"],
-                "current_period_start": datetime.fromtimestamp(stripe_subscription["current_period_start"]),
-                "current_period_end": datetime.fromtimestamp(stripe_subscription["current_period_end"])
+                "current_period_start": period_start,
+                "current_period_end": period_end
             }
         )
         
-        # Add initial monthly credits
-        await db.credit.create(
-            data={
-                "user_id": current_user.id,
-                "amount": plan_info["credits_per_month"],
-                "used": 0,
-                "expires_at": subscription.current_period_end
-            }
-        )
+        # Add initial monthly credits only if subscription is active
+        if subscription_status == SubscriptionStatus.ACTIVE:
+            await db.credit.create(
+                data={
+                    "user_id": current_user.id,
+                    "amount": plan_info["credits_per_month"],
+                    "used": 0,
+                    "expires_at": period_end
+                }
+            )
+            
+            # Update user role
+            await db.user.update(
+                where={"id": current_user.id},
+                data={"role": "SUBSCRIBED"}
+            )
         
-        # Update user role
-        await db.user.update(
-            where={"id": current_user.id},
-            data={"role": "SUBSCRIBED"}
-        )
+        # Return subscription with payment intent if needed
+        response_data = SubscriptionResponse.from_orm(subscription)
         
-        return SubscriptionResponse.from_orm(subscription)
+        # If subscription needs payment confirmation, include payment intent
+        if stripe_subscription.get("latest_invoice", {}).get("payment_intent"):
+            response_data.client_secret = stripe_subscription["latest_invoice"]["payment_intent"]["client_secret"]
+        
+        return response_data
         
     except Exception as e:
         raise PaymentError(f"Failed to create subscription: {str(e)}")

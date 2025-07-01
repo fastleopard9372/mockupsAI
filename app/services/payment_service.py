@@ -141,7 +141,6 @@ class PaymentService:
                 customer["id"],
                 invoice_settings={"default_payment_method": payment_method_id}
             )
-            
             # Create subscription
             subscription = self.stripe.Subscription.create(
                 customer=customer["id"],
