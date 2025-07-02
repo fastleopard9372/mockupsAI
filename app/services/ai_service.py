@@ -143,15 +143,21 @@ class AIService:
             rotation_degrees = int(logo_rotation)
             opacity_percent = 100 if logo_color != 'transparent' else 100
             # Create the prompt for logo overlay
-            prompt_text = f"""Overlay the second image (a logo) onto the first image (a product photo) with the following precise transformations:
-                'Position the logo at x={x_pos}px and y={y_pos}px relative to the top-left of the product image.'
-                'Rotate the logo by {rotation_degrees} degrees around its center.'
-                'Scale the logo to {scale_percent}% of its original size.'
-                'Apply a realistic {technique_prompt} effect (e.g. embossing, screen print, reflection) to blend the logo naturally into the product surface.'
-                'Set the logo’s opacity to {opacity_percent}%.'
-                I don't need a solution, I just need a synthetic image obtained by AI.
-                The final image should look like the logo is physically applied to the product, respecting the lighting, texture, and curvature of the surface. Return only the final composite image not code or explain."""
-            
+            prompt_text = f"""Overlay the second image (a logo) onto the first image (a product photo) using the following visual guidance:
+
+                • Position the logo approximately {x_pos}px from the left and {y_pos}px from the top of the product image (top-left origin).
+
+                • Scale the logo to about {scale_percent}% of its original size to fit proportionally.
+
+                • Rotate the logo by approximately {rotation_degrees} degrees around its center.
+
+                • Apply a realistic {technique_prompt} effect (like embossing, screen print, or reflection) to make the logo feel physically embedded into the product surface.
+
+                • Maintain 100% opacity unless transparency is requested.
+
+                Ensure the final result looks natural and cohesive, accounting for lighting, surface texture, and material. Only return the final image — no text, code, or explanation.
+                """
+
             # Prepare the request payload
             payload = {
                 "model": "gpt-4o-image",
